@@ -4,4 +4,6 @@
 .idea/
 *.tmproj
 .vscode/
-tests/
+# Anchored, so it excludes the chart's own unittest suites (charts/scramdb/tests)
+# without also stripping templates/tests, which is where the `helm test` hooks live.
+/tests/
