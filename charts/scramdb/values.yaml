@@ -118,7 +118,13 @@ auth:
   username: scramdb
   database: scramdb
   ## Leave empty to have the chart generate a 24 character password on first
-  ## install and keep it across upgrades.
+  ## install and keep it across upgrades: it is read back from the live Secret,
+  ## so an upgrade never rotates a working credential.
+  ##
+  ## `helm template` has no cluster to read, so it emits a NEW password on every
+  ## render. That is harmless for install and upgrade, but a GitOps controller
+  ## rendering the chart would churn the Secret on every sync. Set
+  ## `existingSecret` below for that.
   password: ""
   ## Use a Secret you manage instead. Takes precedence over `password`.
   existingSecret: ""
@@ -206,6 +212,9 @@ mcp:
 metrics:
   enabled: true
   containerPort: 9090
+  ## Both of these need the Prometheus Operator CRDs present. Enabling one
+  ## without them fails the release with "no matches for kind", by design: an
+  ## explicit opt-in should refuse rather than silently do nothing.
   serviceMonitor:
     enabled: false
     namespace: ""

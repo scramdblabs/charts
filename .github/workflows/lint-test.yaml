@@ -1,11 +1,9 @@
 name: Lint and test charts
 
+# Pull requests only. Also running on every branch push ran the whole suite
+# twice for each PR, once per event, for the same commit.
 on:
   pull_request:
-  push:
-    branches-ignore:
-      - main
-      - gh-pages
 
 permissions:
   contents: read
