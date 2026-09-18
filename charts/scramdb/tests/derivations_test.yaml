@@ -1,0 +1,135 @@
+suite: derived cluster values
+templates:
+  - configmap.yaml
+  - statefulset.yaml
+  - statefulset-learner.yaml
+tests:
+  - it: standalone writes no cluster section and one replica
+    set:
+      architecture: standalone
+    asserts:
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "\\[cluster\\]"
+        template: configmap.yaml
+      - equal:
+          path: spec.replicas
+          value: 1
+        template: statefulset.yaml
+
+  - it: three voters derive bootstrap_expect 2 and hybrid nodes
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "bootstrap_expect = 2"
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "columnar_replica = true"
+
+  - it: five voters derive bootstrap_expect 4 and no hybrid nodes
+    set:
+      architecture: cluster
+      replicaCount: 5
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "bootstrap_expect = 4"
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "columnar_replica = false"
+
+  - it: region pools sum into one bootstrap_expect
+    set:
+      architecture: cluster
+      license:
+        key: test
+      regions:
+        - name: eu
+          replicas: 2
+        - name: us
+          replicas: 2
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "bootstrap_expect = 3"
+
+  - it: an explicit bootstrap_expect wins over the derivation
+    set:
+      architecture: cluster
+      replicaCount: 3
+      cluster:
+        bootstrapExpect: 0
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "bootstrap_expect = 0"
+
+  - it: an explicit columnarReplica wins over the derivation
+    set:
+      architecture: cluster
+      replicaCount: 3
+      cluster:
+        columnarReplica: false
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "columnar_replica = false"
+
+  - it: every pool shares one headless service so they form one cluster
+    set:
+      architecture: cluster
+      license:
+        key: test
+      regions:
+        - name: eu
+          replicas: 2
+        - name: us
+          replicas: 2
+    template: statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.serviceName
+          value: RELEASE-NAME-scramdb-headless
+        documentIndex: 0
+      - equal:
+          path: spec.serviceName
+          value: RELEASE-NAME-scramdb-headless
+        documentIndex: 1
+
+  - it: the learner tier is non voting
+    set:
+      architecture: cluster
+      license:
+        key: test
+      learners:
+        enabled: true
+        replicas: 2
+    asserts:
+      - matchRegex:
+          path: data["learner-config.toml"]
+          pattern: "learner = true"
+        template: configmap.yaml
+      - equal:
+          path: spec.replicas
+          value: 2
+        template: statefulset-learner.yaml
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: learner
+        template: statefulset-learner.yaml

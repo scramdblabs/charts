@@ -1,0 +1,77 @@
+{{/*
+The client endpoint. Every node is an equal peer serving the same consistent
+database, so this Service load balances across all of them and any pod is a
+correct answer.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scramdb.fullname" . }}
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+  {{- if or .Values.service.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- with .Values.service.clusterIP }}
+  clusterIP: {{ . }}
+  {{- end }}
+  {{- if eq .Values.service.type "LoadBalancer" }}
+  {{- with .Values.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
+  {{- with .Values.service.loadBalancerClass }}
+  loadBalancerClass: {{ . }}
+  {{- end }}
+  {{- if .Values.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- if has .Values.service.type (list "LoadBalancer" "NodePort") }}
+  externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy }}
+  {{- end }}
+  sessionAffinity: {{ .Values.service.sessionAffinity }}
+  {{- with .Values.service.sessionAffinityConfig }}
+  sessionAffinityConfig:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    {{- include "scramdb.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: pgwire
+      port: {{ .Values.service.ports.pgwire }}
+      targetPort: pgwire
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePorts.pgwire }}
+      nodePort: {{ .Values.service.nodePorts.pgwire }}
+      {{- end }}
+    {{- if and .Values.metrics.enabled .Values.service.exposeMetrics }}
+    - name: metrics
+      port: {{ .Values.service.ports.metrics }}
+      targetPort: metrics
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePorts.metrics }}
+      nodePort: {{ .Values.service.nodePorts.metrics }}
+      {{- end }}
+    {{- end }}
+    {{- if and .Values.mcp.enabled .Values.service.exposeMcp }}
+    - name: mcp
+      port: {{ .Values.service.ports.mcp }}
+      targetPort: mcp
+      protocol: TCP
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePorts.mcp }}
+      nodePort: {{ .Values.service.nodePorts.mcp }}
+      {{- end }}
+    {{- end }}
+    {{- with .Values.service.extraPorts }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}

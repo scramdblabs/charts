@@ -1,0 +1,4 @@
+{{- range .Values.extraDeploy }}
+---
+{{ include "scramdb.tplvalues" (dict "value" . "context" $) }}
+{{- end }}

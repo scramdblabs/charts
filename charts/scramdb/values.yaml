@@ -1,0 +1,513 @@
+## ScramDB Helm chart.
+##
+## Two shapes from one chart, picked by `architecture`:
+##   standalone  one node, Community edition, no license needed (the default)
+##   cluster     N nodes forming one serializable database, Enterprise licensed
+##
+## Cluster nodes find each other with no seed list: every pod waits for the same
+## `bootstrap_expect` peer count and discovers them through the headless Service's
+## DNS plus SWIM gossip. The chart derives `bootstrap_expect` from the replica
+## count, so the two can never drift apart.
+
+## Values shared with subcharts and with any chart that declares this one as a
+## dependency. Each one is overridden by its local equivalent below.
+global:
+  ## Prepended to `image.registry`. Point every image at a mirror in one place.
+  imageRegistry: ""
+  ## Pull secrets applied to every pod this chart creates.
+  imagePullSecrets: []
+  ## StorageClass for every PersistentVolumeClaim. "" uses the cluster default,
+  ## which is what makes one values file work on EKS, GKE, AKS and on-prem alike.
+  defaultStorageClass: ""
+
+## standalone | cluster
+##
+## standalone: one pod, no `[cluster]` section, no license check, Community works.
+## cluster:    a multi-node serializable database. Requires an Enterprise or Trial
+##             license (`license.key` or `license.existingSecret`); a node with a
+##             `[cluster]` section and no valid key refuses to start.
+architecture: standalone
+
+## Voting nodes when `regions` is empty. Ignored in standalone (always 1).
+## Three is the smallest cluster that survives losing a node.
+replicaCount: 3
+
+## Multi-region topology: one StatefulSet per entry, all sharing one headless
+## Service, forming ONE flat cluster. Empty (the default) means a single
+## unlabelled pool of `replicaCount` nodes.
+##
+## A table created through a node labelled `eu` homes its replicas in `eu` and
+## commits at region-local quorum latency. On one physical cluster the labels
+## change placement, not latency; pin each pool to real nodes with `nodeSelector`.
+##
+## regions:
+##   - name: eu
+##     zone: eu-central-1a
+##     replicas: 3
+##     nodeSelector:
+##       topology.kubernetes.io/region: eu-central-1
+##     tolerations: []
+##     resources: {}
+##     persistence: {}
+##   - name: us
+##     zone: us-east-1a
+##     replicas: 3
+##     nodeSelector:
+##       topology.kubernetes.io/region: us-east-1
+regions: []
+
+## Learner tier: permanently non-voting nodes that host replicated data for local
+## analytical reads and never join the write quorum. The recommended shape at five
+## nodes or more, where a dedicated tier buys real resource isolation; below that
+## `cluster.columnarReplica` on the voters is the lower-latency answer.
+learners:
+  enabled: false
+  replicas: 2
+  ## Falls back to the voter values when unset.
+  resourcesPreset: ""
+  resources: {}
+  persistence: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  region: ""
+  zone: ""
+
+image:
+  registry: docker.io
+  repository: scramdb/scramdb
+  ## Every install tracks the newest published engine. Pin a semver tag
+  ## (for example "1.0.0") for a reproducible deployment.
+  tag: latest
+  ## Takes precedence over `tag` when set. Format: sha256:...
+  digest: ""
+  ## Always, because a floating `latest` with IfNotPresent silently keeps a stale
+  ## cached layer on a node that already pulled it. Set IfNotPresent with a pinned
+  ## tag.
+  pullPolicy: Always
+  pullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+## The cluster's DNS suffix. Used to build the fully qualified headless Service
+## name every node advertises itself under.
+clusterDomain: cluster.local
+## Applied to every object this chart creates.
+commonLabels: {}
+commonAnnotations: {}
+## Raw manifests rendered alongside the chart. Accepts a list of strings or maps.
+extraDeploy: []
+
+## Bootstrap superuser credential.
+##
+## A fresh node creates superuser `scramdb` with NO password, reachable by TRUST
+## from 127.0.0.1 only. That is safe but unusable through a Service, so the chart
+## seeds a credential at first boot and turns password authentication on.
+##
+## The seeded password applies only while the superuser has no credential: a
+## redeployed pod, a rotated Secret or a leftover value can never reset a password
+## you set yourself, and every later restart is a no-op.
+auth:
+  ## false runs the node with --pg-no-auth: every connection is trusted with no
+  ## password check, roles and passwords notwithstanding. Only for a network you
+  ## already control.
+  enabled: true
+  ## The bootstrap superuser's name is fixed by the engine and cannot be changed
+  ## here; this is the name printed in the connection instructions.
+  username: scramdb
+  database: scramdb
+  ## Leave empty to have the chart generate a 24 character password on first
+  ## install and keep it across upgrades: it is read back from the live Secret,
+  ## so an upgrade never rotates a working credential.
+  ##
+  ## `helm template` has no cluster to read, so it emits a NEW password on every
+  ## render. That is harmless for install and upgrade, but a GitOps controller
+  ## rendering the chart would churn the Secret on every sync. Set
+  ## `existingSecret` below for that.
+  password: ""
+  ## Use a Secret you manage instead. Takes precedence over `password`.
+  existingSecret: ""
+  secretKeys:
+    passwordKey: password
+  ## How the password reaches the engine at first boot.
+  ##   file    a mounted Secret file, read once. The value never appears in the
+  ##           pod spec or /proc/<pid>/environ. Preferred.
+  ##   env     the literal value as an environment variable. Weaker: visible in
+  ##           `kubectl describe pod`.
+  ##   random  the engine generates one and logs it exactly once at first boot.
+  ##           Nothing else in the chart can then tell you what it is.
+  ## Exactly one source may be set; the engine refuses to start on more than one.
+  seedMethod: file
+
+## Enterprise or Trial license. Required by `architecture: cluster` and unused by
+## standalone. A node with a `[cluster]` section whose license resolves to
+## Community refuses to start, naming SCRAMDB_LICENSE_KEY.
+license:
+  key: ""
+  ## A Secret you manage. Takes precedence over `key`.
+  existingSecret: ""
+  secretKeys:
+    licenseKey: license-key
+
+## Cluster formation and placement. Every field here is inert in standalone.
+cluster:
+  ## Copies of each piece of data. Higher tolerates more simultaneous failures at
+  ## the cost of more replicated write traffic. Must not exceed the node count.
+  replicationFactor: 3
+  ## How many OTHER voters a node waits to see before founding the cluster.
+  ## null derives it as (total voters - 1), which is the only value that can be
+  ## right, so leave it alone unless you are joining a cluster the chart does not
+  ## own. A wrong value does not misform silently: the node waits out
+  ## `group0BootstrapTimeout` and then refuses, loudly.
+  bootstrapExpect: null
+  ## Hybrid nodes: a voter that also mirrors every entry it commits into its own
+  ## columnar store, so analytics run locally with zero hops. Costs one full
+  ## columnar copy on the node and a second apply per committed entry, off the
+  ## commit path.
+  ## null derives it: true at three voters or fewer (no smaller topology to
+  ## dedicate a tier out of), false above that (use `learners` instead).
+  columnarReplica: null
+  ## Providers that may yield peer addresses. "dns" resolves the headless Service,
+  ## "swim" learns peers through gossip, "static" reads `seeds` below.
+  discovery:
+    - dns
+    - swim
+  ## How often the dns provider re-resolves the headless Service.
+  dnsRefresh: 5s
+  ## How long a node waits for its expected peers before refusing to form.
+  group0BootstrapTimeout: 60s
+  ## Static peers, for joining a cluster this chart does not own. Setting this
+  ## alongside a derived `bootstrapExpect` is refused at boot; set both or neither.
+  seeds: []
+  ## Extra TOML appended inside the [cluster] section, for the sub-tables this
+  ## chart does not model ([cluster.swim], [cluster.raft], [cluster.rebalance],
+  ## [cluster.txn]). Written verbatim.
+  extraToml: ""
+  ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
+  ## below, which is the client-facing pgwire certificate.
+  tls:
+    enabled: false
+    ## Secret holding tls.crt, tls.key and ca.crt.
+    existingSecret: ""
+    certFilename: tls.crt
+    keyFilename: tls.key
+    caFilename: ca.crt
+
+## Semantic AI MCP server. The engine autostarts it in-process from the packages
+## baked into the image, so every node opens this port whether or not the chart
+## publishes it.
+mcp:
+  enabled: true
+  containerPort: 9191
+  ## basic | env
+  ##   basic  every request carries HTTP Basic credentials mapped to a real
+  ##          database role, so the tool surface is exactly as protected as pgwire.
+  ##   env    NO HTTP authentication. Anyone who reaches the port gets the whole
+  ##          tool surface using the process's own database credentials.
+  ## The chart refuses to render `service.type: LoadBalancer` with `env`.
+  auth: basic
+
+## Prometheus metrics and the /health endpoint, served on one HTTP listener.
+metrics:
+  enabled: true
+  containerPort: 9090
+  ## Both of these need the Prometheus Operator CRDs present. Enabling one
+  ## without them fails the release with "no matches for kind", by design: an
+  ## explicit opt-in should refuse rather than silently do nothing.
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    interval: 30s
+    scrapeTimeout: ""
+    labels: {}
+    annotations: {}
+    relabelings: []
+    metricRelabelings: []
+    honorLabels: false
+    jobLabel: ""
+  prometheusRule:
+    enabled: false
+    namespace: ""
+    labels: {}
+    ## Replaces the shipped rules entirely when non-empty.
+    rules: []
+
+## WAL archiving, which is what makes point-in-time recovery and branching work.
+##
+## In a cluster only the current group0 leader ships segments, and a failed-over
+## leader resumes from the DESTINATION's own listing. A node-local destination
+## therefore fragments the archive across leaders: each one starts a fresh archive
+## and no node ever holds a complete history. Point this at storage every node can
+## reach.
+walArchive:
+  enabled: true
+  ## s3://bucket/prefix | gs://bucket/prefix | az://account/container/prefix |
+  ## file:///path-on-shared-storage. Empty derives a node-local path, which the
+  ## chart warns about in cluster mode.
+  destination: ""
+  pollInterval: 5s
+
+## Client-facing TLS on the PostgreSQL wire protocol. Server side only; ScramDB
+## does not request a client certificate. A missing, unreadable or mismatched
+## certificate fails startup rather than falling back to plaintext.
+tls:
+  enabled: false
+  ## Secret holding the certificate and key, for example one written by cert-manager.
+  existingSecret: ""
+  certFilename: tls.crt
+  keyFilename: tls.key
+
+## pg_hba.conf style rules deciding who is trusted, who is asked for a password
+## and who is rejected. Empty uses the built-in default: TRUST from 127.0.0.1 and
+## ::1, password everywhere else.
+hba:
+  rules: ""
+  existingConfigMap: ""
+
+config:
+  ## Replace the whole generated config with a ConfigMap you manage. The key must
+  ## be `config.toml`. Every other config value in this file is then ignored.
+  existingConfigMap: ""
+  ## TOML appended verbatim after the generated sections. The place for
+  ## [storage.wal], [storage.compaction], [execution], [udf] and anything else the
+  ## chart does not model.
+  extraToml: ""
+  ## Buffer pool and execution memory sizing. 0 means automatic: the engine reads
+  ## the container's cgroup memory limit (falling back to host RAM) and sizes both
+  ## from it, so the same values are correct at 2Gi and at 512Gi.
+  bufferPoolPercent: 0
+  bufferPoolCap: 192GB
+  executionMemoryPercent: 0
+  executionMemoryCap: 64GB
+  jitEnabled: true
+  ## Runtime dlopen with a graceful CPU-only fallback when no device is present.
+  gpuEnabled: true
+
+## Sizing presets. `resources` below overrides whichever preset is selected.
+##
+## `medium` is the reference production shape: 16 vCPU and 32 GiB, matching the
+## c6a.4xlarge the engine's published benchmarks are measured on. An integer CPU
+## request equal to the limit gives Guaranteed QoS, which lets a kubelet running
+## the `static` CPU manager policy pin exclusive cores.
+##
+## dev | small | medium | large | xlarge | none
+resourcesPreset: dev
+resources: {}
+
+persistence:
+  enabled: true
+  ## "" uses the cluster's default StorageClass. NVMe backed classes are strongly
+  ## recommended: the default I/O backend uses direct I/O and rewards sequential
+  ## throughput.
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 100Gi
+  annotations: {}
+  labels: {}
+  selector: {}
+  ## Mount an existing claim instead of templating one. Only meaningful at one
+  ## replica; a StatefulSet cannot share one claim across pods.
+  existingClaim: ""
+  dataSource: {}
+  mountPath: /var/lib/scramdb
+
+service:
+  ## ClusterIP | LoadBalancer | NodePort
+  ## Every node is an equal peer serving the same consistent database, so this
+  ## Service load balances clients across all of them.
+  type: ClusterIP
+  ports:
+    pgwire: 5432
+    metrics: 9090
+    mcp: 9191
+  ## Publish the metrics and MCP ports on this Service. pgwire is always published.
+  exposeMetrics: false
+  exposeMcp: true
+  nodePorts:
+    pgwire: ""
+    metrics: ""
+    mcp: ""
+  clusterIP: ""
+  loadBalancerIP: ""
+  loadBalancerClass: ""
+  ## Leaving this open on a LoadBalancer publishes the database to the internet.
+  loadBalancerSourceRanges: []
+  externalTrafficPolicy: Cluster
+  sessionAffinity: None
+  sessionAffinityConfig: {}
+  annotations: {}
+  extraPorts: []
+
+## The Service that gives every pod its stable DNS name and lets peers find each
+## other. `publishNotReadyAddresses` is required, not cosmetic: a pod is only Ready
+## once it serves queries, but it must resolve its peers to form the cluster in the
+## first place. Without it no pod could ever discover another on first boot.
+headlessService:
+  annotations: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  automountServiceAccountToken: false
+  annotations: {}
+
+## Keeps a voluntary disruption (a node drain, a cluster upgrade) from evicting two
+## quorum members at once.
+pdb:
+  create: true
+  minAvailable: ""
+  maxUnavailable: 1
+
+networkPolicy:
+  enabled: false
+  ## false restricts pgwire and MCP to the selectors below; the cluster transport
+  ## is always restricted to this chart's own pods.
+  allowExternal: true
+  allowExternalEgress: true
+  extraIngress: []
+  extraEgress: []
+  ingressPodMatchLabels: {}
+  ingressNSMatchLabels: {}
+  ingressNSPodMatchLabels: {}
+  metricsNSMatchLabels: {}
+
+## Applied to the pod. fsGroup is what makes the data volume writable: it is added
+## to the process's supplementary groups and the kubelet gives the volume that
+## group, so it works whatever UID the image runs as.
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+  fsGroupChangePolicy: OnRootMismatch
+  sysctls: []
+  supplementalGroups: []
+
+## Applied to the containers. The defaults satisfy the restricted Pod Security
+## Standard.
+##
+## runAsUser/runAsGroup must match the image's own user. Images built before the
+## UID was pinned declare their user by NAME, which a kubelet cannot verify: set
+## `runAsNonRoot: false` and clear runAsUser/runAsGroup when running one of those.
+containerSecurityContext:
+  enabled: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+  privileged: false
+  ## The engine writes only under the data volume (its spill and cache directories
+  ## derive from `storage.basedir`) and the rendered config volume, so a read-only
+  ## root filesystem is safe.
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+## Never puts two quorum members on one machine when the cluster can avoid it.
+## soft | hard | ""
+podAntiAffinityPreset: soft
+## Spreads pods across failure domains. Set whenUnsatisfiable to DoNotSchedule to
+## make it a requirement rather than a preference.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+
+nodeSelector: {}
+tolerations: []
+## Set to take full control; disables podAntiAffinityPreset.
+affinity: {}
+priorityClassName: ""
+schedulerName: ""
+runtimeClassName: ""
+hostNetwork: false
+hostAliases: []
+dnsPolicy: ""
+dnsConfig: {}
+
+## Graceful shutdown budget.
+##
+## A terminating node hands its bucket ownership and its voter seat back before it
+## exits. That drain, the query drain and the JIT quiesce each get their own
+## timeout (10s by default), so a worst case graceful stop needs roughly 40s. A pod
+## killed before it finishes stays a configured voter the cluster still counts,
+## which costs quorum on the next scale-down, so this is deliberately generous.
+terminationGracePeriodSeconds: 120
+## Buys the process's listeners a moment to close. The drain itself runs afterward,
+## in the shutdown sequence proper, not here.
+preStopSleepSeconds: 2
+
+## Parallel, so a cluster forms in one pass instead of serially waiting for each
+## pod to become Ready, which cannot happen until its peers exist.
+podManagementPolicy: Parallel
+updateStrategy:
+  type: RollingUpdate
+
+podLabels: {}
+podAnnotations: {}
+
+## Covers first boot, where the pgwire listener only binds after the cluster forms.
+## The default tolerates ten minutes, comfortably past `group0BootstrapTimeout`.
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 60
+  successThreshold: 1
+
+## Proves this node accepts client connections.
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+## Restarts a wedged process. Deliberately slack: a node that is merely waiting for
+## peers is not unhealthy.
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+## Replace a probe entirely.
+customStartupProbe: {}
+customReadinessProbe: {}
+customLivenessProbe: {}
+
+## error | warn | info | debug | trace
+logLevel: warn
+## "" leaves the image default. "json" emits structured lines.
+logFormat: ""
+## Pins the worker count regardless of what the container reports. Empty lets the
+## engine resolve it from the cpuset and the cgroup CPU quota, which is correct
+## under `resources.limits.cpu`.
+maxCores: ""
+
+extraEnvVars: []
+extraEnvVarsCM: ""
+extraEnvVarsSecret: ""
+extraVolumes: []
+extraVolumeMounts: []
+initContainers: []
+sidecars: []
+lifecycleHooks: {}
+command: []
+args: []
+
+## Starts the container with a sleep instead of the engine and disables the probes,
+## so a broken pod can be inspected from the inside.
+diagnosticMode:
+  enabled: false
+  command:
+    - sleep
+  args:
+    - infinity

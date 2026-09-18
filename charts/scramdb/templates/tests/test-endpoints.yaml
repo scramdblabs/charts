@@ -1,0 +1,76 @@
+{{- if .Values.metrics.enabled }}
+{{/*
+Proves the metrics listener is actually serving, per node, through the headless
+Service. Uses bash's own /dev/tcp rather than curl, which the image does not
+carry, so this still needs no second image.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "scramdb.fullname" . }}-test-endpoints
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  {{- include "scramdb.imagePullSecrets" . | nindent 2 }}
+  {{- if .Values.podSecurityContext.enabled }}
+  securityContext:
+    {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: endpoints
+      image: {{ include "scramdb.image" . }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      {{- if .Values.containerSecurityContext.enabled }}
+      securityContext:
+        {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          HOST={{ include "scramdb.headlessServiceName" . }}.{{ include "scramdb.namespace" . }}.svc.{{ .Values.clusterDomain }}
+          PORT={{ .Values.metrics.containerPort }}
+
+          fetch() {
+            local path="$1" reply=""
+            exec 3<>"/dev/tcp/$HOST/$PORT"
+            printf 'GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n' "$path" "$HOST" >&3
+            reply=$(cat <&3)
+            exec 3<&-
+            printf '%s' "$reply"
+          }
+
+          echo "1. /health"
+          health=$(fetch /health)
+          printf '%s' "$health" | head -1 | grep -q "200" || { echo "   FAIL: $(printf '%s' "$health" | head -1)"; exit 1; }
+          printf '%s' "$health" | tail -1 | grep -q "ok" || { echo "   FAIL: body was not ok"; exit 1; }
+          echo "   ok, HTTP 200 and body ok"
+
+          echo "2. /metrics serves real counters"
+          metrics=$(fetch /metrics)
+          printf '%s' "$metrics" | head -1 | grep -q "200" || { echo "   FAIL: $(printf '%s' "$metrics" | head -1)"; exit 1; }
+          first=$(printf '%s' "$metrics" | grep -m1 '^scramdb_' || true)
+          [ -n "$first" ] || { echo "   FAIL: no scramdb_ metric in the response"; exit 1; }
+          echo "   ok, $first"
+
+          echo "3. an unknown path is refused rather than answered"
+          printf '%s' "$(fetch /not-a-real-path)" | head -1 | grep -q "404" \
+            || { echo "   FAIL: expected 404"; exit 1; }
+          echo "   ok, 404"
+
+          echo "PASS"
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}
+{{- end }}

@@ -1,0 +1,54 @@
+{{/*
+The Service that gives every pod its stable DNS name and lets peers find each
+other. Every pool's StatefulSet points at this one Service, which is what makes
+several StatefulSets into one flat cluster.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scramdb.headlessServiceName" . }}
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+    scramdb.com/service: headless
+  {{- if or .Values.headlessService.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.headlessService.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  clusterIP: None
+  # Required, not cosmetic. A pod is only Ready once it serves queries, but it has
+  # to resolve its peers to form the cluster in the first place. Publishing only
+  # Ready addresses would leave every pod of a fresh cluster invisible to every
+  # other, and the cluster would never form.
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "scramdb.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: pgwire
+      port: 5432
+      targetPort: pgwire
+      protocol: TCP
+    {{- if include "scramdb.isCluster" . }}
+    - name: cluster
+      port: 7190
+      targetPort: cluster
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.metrics.enabled }}
+    - name: metrics
+      port: {{ .Values.metrics.containerPort }}
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}
+    {{- if .Values.mcp.enabled }}
+    - name: mcp
+      port: {{ .Values.mcp.containerPort }}
+      targetPort: mcp
+      protocol: TCP
+    {{- end }}

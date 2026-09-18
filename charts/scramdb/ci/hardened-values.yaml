@@ -1,0 +1,32 @@
+# Everything the chart can lock down at once.
+architecture: cluster
+replicaCount: 3
+license:
+  existingSecret: scramdb-license
+auth:
+  existingSecret: scramdb-auth
+  seedMethod: file
+tls:
+  enabled: true
+  existingSecret: scramdb-tls
+cluster:
+  tls:
+    enabled: true
+    existingSecret: scramdb-cluster-tls
+hba:
+  rules: |
+    host    all all 10.0.0.0/8 trust
+    hostssl all all 0.0.0.0/0  password
+    hostssl all all ::/0       password
+networkPolicy:
+  enabled: true
+  allowExternal: false
+  ingressNSMatchLabels:
+    kubernetes.io/metadata.name: applications
+metrics:
+  serviceMonitor:
+    enabled: true
+  prometheusRule:
+    enabled: true
+walArchive:
+  destination: gs://scramdb-ci/wal

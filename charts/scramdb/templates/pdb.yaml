@@ -1,0 +1,28 @@
+{{- if and .Values.pdb.create (include "scramdb.isCluster" .) }}
+{{/*
+Keeps a node drain or a cluster upgrade from evicting two quorum members at once.
+With three voters and replication factor 3, losing two at the same time loses the
+majority, so this is what makes `kubectl drain` safe.
+*/}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "scramdb.fullname" . }}
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.pdb.minAvailable }}
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ .Values.pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "scramdb.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: voter
+{{- end }}

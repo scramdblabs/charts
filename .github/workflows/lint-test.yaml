@@ -1,46 +1,92 @@
-name: Lint and Test Charts
+name: Lint and test charts
 
-on: pull_request
+# Pull requests only. Also running on every branch push ran the whole suite
+# twice for each PR, once per event, for the same commit.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  HELM_VERSION: v3.19.0
+  KUBECONFORM_VERSION: v0.6.7
 
 jobs:
-  lint-test:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v4.2.0
+      - uses: azure/setup-helm@v4
         with:
-          version: v3.14.4
+          version: ${{ env.HELM_VERSION }}
 
+      # Pinned, not floating: chart-testing bundles yamale, which still
+      # references ast.Num. That was removed in Python 3.12, so a 3.x runner
+      # crashes ct's own Chart.yaml schema validator before it reads a chart.
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-          check-latest: true
+          python-version: '3.11'
 
-      - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.6.1
+      - uses: helm/chart-testing-action@v2.7.0
 
-      - name: Run chart-testing (list-changed)
+      - name: List changed charts
         id: list-changed
         run: |
-          changed=$(ct list-changed --target-branch ${{ github.event.repository.default_branch }} --config ct.yaml)
+          changed=$(ct list-changed --target-branch "${{ github.event.repository.default_branch }}" --config ct.yaml)
           if [[ -n "$changed" ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run chart-testing (lint)
+      # ct lint also enforces the version bump, so a chart change that forgets to
+      # bump Chart.yaml never reaches the release workflow.
+      - name: Lint
         if: steps.list-changed.outputs.changed == 'true'
-        run: ct lint --target-branch ${{ github.event.repository.default_branch }} --config ct.yaml
+        run: ct lint --target-branch "${{ github.event.repository.default_branch }}" --config ct.yaml
 
-      ################ CHART TESTING LOCALLY WORKS. DOESN'T ALLOWS DISCOVERY ON GH ACTIONS.
-      # - name: Create kind cluster
-      #   if: steps.list-changed.outputs.changed == 'true'
-      #   uses: helm/kind-action@v1.10.0
+  render:
+    name: Render and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      # - name: Run chart-testing (install)
-      #   if: steps.list-changed.outputs.changed == 'true'
-      #   run: ct install --target-branch ${{ github.event.repository.default_branch }} --config ct.yaml
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      # Every values combination in charts/scramdb/ci renders, and every object it
+      # produces is checked against the real Kubernetes schemas plus the Prometheus
+      # Operator CRDs. This proves the manifests are valid; it does not prove a
+      # cluster forms, which needs a licensed image and a live cluster.
+      - name: Render and validate every values matrix
+        run: make template validate
+
+  unittest:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install helm-unittest
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest
+
+      # Asserts the values the chart derives rather than copies: bootstrap_expect
+      # from the replica sum, columnar_replica from the node count, exactly one
+      # password seeding variable, and every refusal that stops a crash loop
+      # before it is installed.
+      - name: Run unit tests
+        run: make test

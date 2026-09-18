@@ -1,0 +1,84 @@
+{{/*
+Proves a client can actually reach the database through the Service, and that
+the credential the chart seeded is the one the engine enforces.
+
+Runs on the ScramDB image itself, which already carries psql, so the test adds
+no second image to pull or trust.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "scramdb.fullname" . }}-test-connection
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  {{- include "scramdb.imagePullSecrets" . | nindent 2 }}
+  {{- if .Values.podSecurityContext.enabled }}
+  securityContext:
+    {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: connection
+      image: {{ include "scramdb.image" . }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      {{- if .Values.containerSecurityContext.enabled }}
+      securityContext:
+        {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          HOST={{ include "scramdb.fullname" . }}.{{ include "scramdb.namespace" . }}.svc.{{ .Values.clusterDomain }}
+          PORT={{ .Values.service.ports.pgwire }}
+          DSN="host=$HOST port=$PORT user={{ .Values.auth.username }} dbname={{ .Values.auth.database }}"
+
+          echo "1. the database answers a real query"
+          got=$(psql "$DSN" -tAc "select 1 + 1")
+          [ "$got" = "2" ] || { echo "   FAIL: expected 2, got '$got'"; exit 1; }
+          echo "   ok"
+
+          echo "2. the server identifies as ScramDB"
+          psql "$DSN" -tAc "select version()" | head -1 | sed 's/^/   /'
+
+          {{- if .Values.auth.enabled }}
+          echo "3. authentication is enforced, not just configured"
+          # An empty password must be refused. If this connects, the release is
+          # serving unauthenticated despite auth.enabled, which is the one
+          # failure worth failing the whole test for.
+          if PGPASSWORD="" psql "$DSN" -tAc "select 1" >/dev/null 2>&1; then
+            echo "   FAIL: connected with no password while auth.enabled=true"
+            exit 1
+          fi
+          echo "   ok, refused without a credential"
+          {{- else }}
+          echo "3. auth.enabled=false, so no credential is expected"
+          {{- end }}
+
+          echo "PASS"
+      env:
+        {{- if .Values.auth.enabled }}
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "scramdb.authSecretName" . }}
+              key: {{ .Values.auth.secretKeys.passwordKey }}
+        {{- end }}
+        # psql writes its history and temporary files under HOME, which the
+        # read-only root filesystem does not allow.
+        - name: HOME
+          value: /tmp
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}

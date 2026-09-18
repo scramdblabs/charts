@@ -1,28 +1,87 @@
-name: Release Charts
+name: Release charts
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'charts/**'
+      - '.github/workflows/release.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  HELM_VERSION: v3.19.0
+  # The custom domain the gh-pages branch serves the repository index from.
+  PAGES_DOMAIN: charts.scramdb.com
+  OCI_REGISTRY: registry-1.docker.io
+  OCI_NAMESPACE: scramdb
+  # The commit identity for the gh-pages updates, supplied through the
+  # environment so no step has to rewrite the repository's git configuration.
+  GIT_AUTHOR_NAME: github-actions[bot]
+  GIT_COMMITTER_NAME: github-actions[bot]
+  GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
 
 jobs:
   release:
+    name: Publish
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
 
-      - name: Install Helm
-        uses: azure/setup-helm@v1
-
+      # Packages every chart whose version changed, cuts a GitHub release for it
+      # and updates index.yaml on gh-pages. A chart whose version did not change
+      # is skipped, so a docs-only commit publishes nothing.
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.0
+        id: cr
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          skip_existing: true
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # GitHub Pages serves the index from a custom domain, which needs this file
+      # on the branch. Asserted on every publish rather than committed once by
+      # hand, so a rewritten gh-pages branch cannot silently drop the domain.
+      - name: Keep the custom domain on gh-pages
+        run: |
+          git fetch origin gh-pages
+          git worktree add ../pages gh-pages
+          if [[ "$(cat ../pages/CNAME 2>/dev/null)" != "$PAGES_DOMAIN" ]]; then
+            echo "$PAGES_DOMAIN" > ../pages/CNAME
+            git -C ../pages add CNAME
+            git -C ../pages commit -m "chore: pin the pages domain to $PAGES_DOMAIN"
+            git -C ../pages push origin gh-pages
+          else
+            echo "CNAME already set to $PAGES_DOMAIN"
+          fi
+          git worktree remove ../pages
+
+      - name: Log in to the OCI registry
+        if: steps.cr.outputs.changed_charts != ''
+        run: |
+          echo "${{ secrets.SCRAMDB_DOCKER_TOKEN }}" \
+            | helm registry login "$OCI_REGISTRY" \
+                --username "${{ secrets.SCRAMDB_DOCKER_USERNAME }}" --password-stdin
+
+      # The same packages chart-releaser just built, pushed as OCI artifacts so
+      # `helm install oci://...` resolves the identical bytes the Helm repository
+      # serves.
+      - name: Push charts to the OCI registry
+        if: steps.cr.outputs.changed_charts != ''
+        run: |
+          shopt -s nullglob
+          for pkg in .cr-release-packages/*.tgz; do
+            echo "pushing $pkg"
+            helm push "$pkg" "oci://$OCI_REGISTRY/$OCI_NAMESPACE"
+          done

@@ -1,0 +1,118 @@
+{{- $fullname := include "scramdb.fullname" . -}}
+{{- $ns := include "scramdb.namespace" . -}}
+ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
+
+{{ if include "scramdb.isCluster" . -}}
+  Cluster of {{ include "scramdb.voterCount" . }} voting node(s){{ if .Values.learners.enabled }} plus {{ .Values.learners.replicas }} learner(s){{ end }}.
+  Replication factor {{ .Values.cluster.replicationFactor }}, bootstrap_expect {{ include "scramdb.bootstrapExpect" . }}, columnar_replica {{ include "scramdb.columnarReplica" . }}.
+  {{- if .Values.regions }}
+  Region pools: {{ range $i, $r := .Values.regions }}{{ if $i }}, {{ end }}{{ $r.name }} ({{ default $.Values.replicaCount $r.replicas }}){{ end }}.
+  {{- end }}
+{{- else -}}
+  Single node. Community edition, no license required.
+{{- end }}
+
+1. Connect
+
+   Every node serves the same consistent database, so any pod is a correct
+   endpoint. In cluster, the Service load balances across all of them:
+
+     postgresql://{{ .Values.auth.username }}@{{ $fullname }}.{{ $ns }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.ports.pgwire }}/{{ .Values.auth.database }}
+
+   From your machine:
+
+     kubectl port-forward --namespace {{ $ns }} svc/{{ $fullname }} {{ .Values.service.ports.pgwire }}:{{ .Values.service.ports.pgwire }}
+     psql "host=127.0.0.1 port={{ .Values.service.ports.pgwire }} user={{ .Values.auth.username }} dbname={{ .Values.auth.database }}"
+
+{{- if and .Values.auth.enabled (ne .Values.auth.seedMethod "random") }}
+
+2. The superuser password
+
+     kubectl get secret --namespace {{ $ns }} {{ include "scramdb.authSecretName" . }} \
+       -o jsonpath="{.data.{{ .Values.auth.secretKeys.passwordKey }}}" | base64 -d
+
+   Seeded once, at first boot, while the superuser had no credential. Rotating or
+   deleting this Secret afterwards never resets a password you set with
+   ALTER ROLE, and never locks anyone out.
+{{- else if and .Values.auth.enabled (eq .Values.auth.seedMethod "random") }}
+
+2. The superuser password
+
+   auth.seedMethod=random: the engine generated one and logged it exactly once,
+   at first boot. Nothing else knows it.
+
+     kubectl logs --namespace {{ $ns }} {{ $fullname }}-0 | grep -i password
+{{- end }}
+
+3. Endpoints
+{{ if .Values.metrics.enabled }}
+   Metrics and health: port {{ .Values.metrics.containerPort }}, paths /metrics and /health.
+{{- end }}
+{{- if .Values.mcp.enabled }}
+   Semantic AI MCP: port {{ .Values.mcp.containerPort }}, authentication {{ .Values.mcp.auth }}.
+   {{- if eq .Values.mcp.auth "basic" }}
+   Callers send HTTP Basic credentials for a real database role.
+   {{- end }}
+{{- end }}
+{{- if include "scramdb.isCluster" . }}
+
+4. Watch the cluster form
+
+     kubectl get pods --namespace {{ $ns }} -l app.kubernetes.io/instance={{ .Release.Name }} -w
+     kubectl logs --namespace {{ $ns }} {{ $fullname }}{{ if .Values.regions }}-{{ (index .Values.regions 0).name }}{{ end }}-0 | grep -E "cluster transport: bound|swim: member up"
+
+   Then ask the cluster about itself:
+
+     SELECT * FROM scram.nodes;
+     SELECT * FROM scram.shards;
+     SELECT * FROM scram.freshness;
+
+   A NULL in those relations means not measured, never zero.
+
+5. Scaling
+
+   Adding a node needs no configuration change: a new pod discovers the formed
+   cluster through DNS, joins as a non-voting member and is promoted after it
+   catches up.
+
+     helm upgrade {{ .Release.Name }} --namespace {{ $ns }} --reuse-values --set replicaCount=<N>
+
+   Removing one is also safe: a terminating pod hands its bucket ownership and
+   its voter seat back before it exits, inside terminationGracePeriodSeconds
+   ({{ .Values.terminationGracePeriodSeconds }}s here). To drain a node explicitly first:
+
+     ALTER CLUSTER DRAIN '<node-name>';
+
+   Changing the replica count re-derives bootstrap_expect, so the pods roll once.
+   That is real reconfiguration work, not a no-op, and it is why the derived value
+   is worth the roll: a stale one would refuse to form the next time the cluster
+   is bootstrapped from empty.
+{{- end }}
+
+{{- $warnings := list }}
+{{- if not .Values.auth.enabled }}
+{{- $warnings = append $warnings "auth.enabled=false: every connection is trusted with no password check. Anyone who reaches port 5432 is a superuser." }}
+{{- end }}
+{{- if and .Values.mcp.enabled (eq .Values.mcp.auth "env") }}
+{{- $warnings = append $warnings (printf "mcp.auth=env: the MCP tool surface on port %v has no authentication. Keep it on a ClusterIP, or set mcp.auth=basic." .Values.mcp.containerPort) }}
+{{- end }}
+{{- if and (include "scramdb.isCluster" .) .Values.walArchive.enabled (not .Values.walArchive.destination) }}
+{{- $warnings = append $warnings "walArchive.destination is unset, so each node archives WAL locally. Only the current leader ships segments and a new leader resumes from the destination's own listing, so after a failover no node holds a complete point-in-time history. Set an s3://, gs://, az:// or shared file:// destination." }}
+{{- end }}
+{{- if eq .Values.resourcesPreset "dev" }}
+{{- $warnings = append $warnings "resourcesPreset=dev (1 CPU, 2Gi) is sized to install anywhere, not to serve a workload. Production sizing is resourcesPreset=medium: 16 vCPU and 32Gi, the reference shape the engine's published benchmarks are measured on." }}
+{{- end }}
+{{- if not .Values.persistence.enabled }}
+{{- $warnings = append $warnings "persistence.enabled=false: data lives in an emptyDir and is destroyed with the pod." }}
+{{- end }}
+{{- if eq .Values.image.tag "latest" }}
+{{- $warnings = append $warnings "image.tag=latest: every pod restart may pick up a newer engine build. Pin a version tag for a reproducible deployment." }}
+{{- end }}
+{{- if $warnings }}
+
+WORTH KNOWING
+{{ range $warnings }}
+ - {{ . }}
+{{ end }}
+{{- end }}
+Documentation: https://scramdb.com/docs/deployment/kubernetes

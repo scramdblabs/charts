@@ -1,0 +1,44 @@
+apiVersion: v2
+name: scramdb
+description: ScramDB, the programmable distributed hyperscale UTAP SQL database. Single node or a serializable multi-node cluster from one chart.
+type: application
+
+# Chart version. Bumped on every chart change; chart-releaser publishes on a bump.
+version: 1.0.0
+# The ScramDB release this chart is written against. The image tag defaults to
+# `latest` (values.yaml image.tag), so this records what the templates were
+# verified against, not what a given install runs.
+appVersion: "1.0.0"
+
+keywords:
+  - scramdb
+  - database
+  - sql
+  - postgresql
+  - htap
+  - utap
+  - analytics
+  - distributed
+  - cluster
+
+home: https://scramdb.com
+icon: https://scramdb.com/img/logo.png
+sources:
+  - https://github.com/scramdblabs/charts
+  - https://github.com/scramdblabs/releases
+
+maintainers:
+  - name: ScramDB
+    email: info@scramdb.com
+    url: https://scramdb.com
+
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://scramdb.com/docs/deployment/kubernetes
+    - name: Container image
+      url: https://hub.docker.com/r/scramdb/scramdb
+  artifacthub.io/images: |
+    - name: scramdb
+      image: docker.io/scramdb/scramdb:latest

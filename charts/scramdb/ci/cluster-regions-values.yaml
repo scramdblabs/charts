@@ -1,0 +1,17 @@
+# Two regions, two voters each, one flat cluster over one headless Service.
+architecture: cluster
+license:
+  key: ci-placeholder-not-a-real-license
+cluster:
+  replicationFactor: 2
+regions:
+  - name: eu
+    zone: eu-central-1a
+    replicas: 2
+    nodeSelector:
+      topology.kubernetes.io/region: eu-central-1
+  - name: us
+    zone: us-east-1a
+    replicas: 2
+    nodeSelector:
+      topology.kubernetes.io/region: us-east-1

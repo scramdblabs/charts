@@ -1,0 +1,24 @@
+{{- if not .Values.config.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "scramdb.fullname" . }}
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  config.toml: |
+    {{- include "scramdb.configToml" (dict "root" . "learner" false) | nindent 4 }}
+  {{- if .Values.learners.enabled }}
+  learner-config.toml: |
+    {{- include "scramdb.configToml" (dict "root" . "learner" true) | nindent 4 }}
+  {{- end }}
+  {{- if .Values.hba.rules }}
+  pg_hba.conf: |
+    {{- tpl .Values.hba.rules . | nindent 4 }}
+  {{- end }}
+{{- end }}

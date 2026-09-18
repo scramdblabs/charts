@@ -1,0 +1,4 @@
+# A single Community node, the chart's default shape.
+architecture: standalone
+persistence:
+  size: 8Gi

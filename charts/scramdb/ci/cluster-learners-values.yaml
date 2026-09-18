@@ -1,0 +1,10 @@
+# Five voters plus a dedicated learner tier: the shape the docs recommend once a
+# hybrid node stops being the lower latency answer.
+architecture: cluster
+replicaCount: 5
+license:
+  existingSecret: scramdb-license
+learners:
+  enabled: true
+  replicas: 2
+  resourcesPreset: small

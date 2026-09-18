@@ -1,0 +1,123 @@
+{{- if and .Values.metrics.enabled .Values.metrics.prometheusRule.enabled }}
+{{/*
+Every expression below uses a metric family the engine really emits. An absent
+metric means "not measured yet" on this endpoint, never zero, so nothing here
+alerts on absence.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "scramdb.fullname" . }}
+  namespace: {{ default (include "scramdb.namespace" .) .Values.metrics.prometheusRule.namespace }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: {{ include "scramdb.fullname" . }}
+      rules:
+        {{- if .Values.metrics.prometheusRule.rules }}
+        {{- toYaml .Values.metrics.prometheusRule.rules | nindent 8 }}
+        {{- else }}
+        - alert: ScramDBNodeDown
+          expr: up{job="{{ include "scramdb.fullname" . }}"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A ScramDB node is not being scraped
+            description: "{{ `{{ $labels.instance }}` }} has not answered a scrape for 5 minutes."
+        - alert: ScramDBQueryErrors
+          expr: rate(scramdb_queries_err[5m]) / clamp_min(rate(scramdb_queries_total[5m]), 1) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: More than 5 percent of queries are failing
+            description: "{{ `{{ $labels.instance }}` }} is returning errors for more than 5 percent of statements."
+        - alert: ScramDBLicenseInvalid
+          expr: scramdb_license_valid == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: ScramDB license is not valid
+            description: "{{ `{{ $labels.instance }}` }} resolved to an invalid license. Cluster mode refuses to start without a valid Enterprise key."
+        - alert: ScramDBLicenseExpiring
+          expr: scramdb_license_days_of_term_remaining < 14
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: ScramDB license expires within two weeks
+            description: "{{ `{{ $value }}` }} days of term remain on {{ `{{ $labels.instance }}` }}."
+        - alert: ScramDBReadOnly
+          expr: scramdb_license_read_only_active == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: ScramDB has entered read-only mode
+            description: "{{ `{{ $labels.instance }}` }} is refusing writes. Check the license data cap."
+        - alert: ScramDBWalArchiveErrors
+          expr: increase(scramdb_wal_archive_errors_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: WAL archiving is failing
+            description: "{{ `{{ $labels.instance }}` }} could not ship WAL segments. Point-in-time recovery is falling behind."
+        - alert: ScramDBWalArchiveBehind
+          expr: scramdb_wal_archive_segments_behind > 10
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: WAL archive is behind
+            description: "{{ `{{ $value }}` }} segments on {{ `{{ $labels.instance }}` }} have not reached the archive."
+        {{- if include "scramdb.isCluster" . }}
+        - alert: ScramDBQuarantinedGroup
+          expr: scramdb_cluster_quarantined_groups > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A shard group is quarantined
+            description: "{{ `{{ $value }}` }} group(s) on {{ `{{ $labels.instance }}` }} are quarantined. The group rejoins on its own once its storage is healthy; nothing is deleted."
+        - alert: ScramDBPeerFlapping
+          expr: increase(scramdb_cluster_peer_disconnects_total[15m]) > 5
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cluster peers are reconnecting repeatedly
+            description: "{{ `{{ $labels.instance }}` }} lost a peer connection more than five times in fifteen minutes."
+        - alert: ScramDBPartitionFrameDrops
+          expr: increase(scramdb_cluster_partition_drops_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Distributed query frames are being dropped
+            description: "{{ `{{ $labels.instance }}` }} dropped exchange frames, which points at a saturated cluster transport."
+        {{- end }}
+        - alert: ScramDBAdmissionStalls
+          expr: increase(scramdb_admission_waited_past_deadline_total[15m]) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Heavy statements are parked waiting for execution memory
+            description: "{{ `{{ $labels.instance }}` }} has statements queued past the admission warning deadline. Raise memory, or lower concurrency."
+        - alert: ScramDBBufferPoolWatchdog
+          expr: increase(scramdb_pool_watchdog_escalations_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: The buffer pool watchdog is escalating
+            description: "{{ `{{ $labels.instance }}` }} is under memory pressure severe enough for the watchdog to act."
+        {{- end }}
+{{- end }}

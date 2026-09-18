@@ -1,0 +1,14 @@
+{{- if and (include "scramdb.isCluster" .) .Values.learners.enabled }}
+{{- $pool := dict
+    "suffix" "learner"
+    "replicas" (int .Values.learners.replicas)
+    "region" .Values.learners.region
+    "zone" .Values.learners.zone
+    "nodeSelector" .Values.learners.nodeSelector
+    "tolerations" .Values.learners.tolerations
+    "affinity" .Values.learners.affinity
+    "resources" .Values.learners.resources
+    "resourcesPreset" .Values.learners.resourcesPreset
+    "persistence" .Values.learners.persistence }}
+{{ include "scramdb.statefulset" (dict "root" . "pool" $pool "learner" true) }}
+{{- end }}

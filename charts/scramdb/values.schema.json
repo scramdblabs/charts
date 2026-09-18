@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "ScramDB chart values",
+  "type": "object",
+  "properties": {
+    "architecture": {
+      "type": "string",
+      "enum": ["standalone", "cluster"],
+      "description": "standalone runs one Community node; cluster runs a licensed multi-node database."
+    },
+    "replicaCount": { "type": "integer", "minimum": 1 },
+    "regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "zone": { "type": "string" },
+          "replicas": { "type": "integer", "minimum": 1 },
+          "nodeSelector": { "type": "object" },
+          "tolerations": { "type": "array" },
+          "affinity": { "type": "object" },
+          "resources": { "type": "object" },
+          "resourcesPreset": { "type": "string" },
+          "persistence": { "type": "object" }
+        }
+      }
+    },
+    "learners": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "replicas": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "registry": { "type": "string" },
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "digest": { "type": "string" },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "pullSecrets": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "username": { "type": "string", "minLength": 1 },
+        "database": { "type": "string", "minLength": 1 },
+        "password": { "type": "string" },
+        "existingSecret": { "type": "string" },
+        "seedMethod": {
+          "type": "string",
+          "enum": ["file", "env", "random"],
+          "description": "Exactly one seeding source may reach the engine; it refuses to start on more than one."
+        }
+      }
+    },
+    "license": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "existingSecret": { "type": "string" }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "properties": {
+        "replicationFactor": { "type": "integer", "minimum": 1 },
+        "bootstrapExpect": { "type": ["integer", "null"], "minimum": 0 },
+        "columnarReplica": { "type": ["boolean", "null"] },
+        "discovery": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["static", "dns", "swim"] },
+          "minItems": 1
+        },
+        "dnsRefresh": { "type": "string" },
+        "group0BootstrapTimeout": { "type": "string" },
+        "seeds": { "type": "array", "items": { "type": "string" } },
+        "extraToml": { "type": "string" },
+        "tls": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "existingSecret": { "type": "string" }
+          }
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "containerPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "auth": {
+          "type": "string",
+          "enum": ["basic", "env"],
+          "description": "env leaves the MCP tool surface unauthenticated."
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "containerPort": { "type": "integer", "minimum": 0, "maximum": 65535 }
+      }
+    },
+    "walArchive": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "destination": { "type": "string" },
+        "pollInterval": { "type": "string" }
+      }
+    },
+    "resourcesPreset": {
+      "type": "string",
+      "enum": ["dev", "small", "medium", "large", "xlarge", "none"],
+      "description": "medium is 16 vCPU and 32Gi, the reference production shape."
+    },
+    "resources": { "type": "object" },
+    "persistence": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "storageClass": { "type": "string" },
+        "accessModes": { "type": "array", "items": { "type": "string" } },
+        "size": { "type": "string" },
+        "existingClaim": { "type": "string" },
+        "mountPath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["ClusterIP", "LoadBalancer", "NodePort"] },
+        "ports": {
+          "type": "object",
+          "properties": {
+            "pgwire": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "metrics": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "mcp": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        },
+        "sessionAffinity": { "type": "string", "enum": ["None", "ClientIP"] },
+        "externalTrafficPolicy": { "type": "string", "enum": ["Cluster", "Local"] }
+      }
+    },
+    "podAntiAffinityPreset": { "type": "string", "enum": ["soft", "hard", ""] },
+    "podManagementPolicy": { "type": "string", "enum": ["Parallel", "OrderedReady"] },
+    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 1 },
+    "logLevel": { "type": "string", "enum": ["error", "warn", "info", "debug", "trace"] },
+    "pdb": {
+      "type": "object",
+      "properties": {
+        "create": { "type": "boolean" },
+        "minAvailable": { "type": ["integer", "string"] },
+        "maxUnavailable": { "type": ["integer", "string"] }
+      }
+    }
+  }
+}

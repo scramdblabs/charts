@@ -1,6 +1,9 @@
-# See https://github.com/helm/chart-testing#configuration
+# https://github.com/helm/chart-testing#configuration
 remote: origin
 chart-dirs:
   - charts
 validate-maintainers: false
-helm-extra-args: --timeout 800s
+check-version-increment: true
+# Cluster formation waits out group0_bootstrap_timeout before it gives up, and a
+# node pulls a large image first, so an install test needs more than the default.
+helm-extra-args: --timeout 900s

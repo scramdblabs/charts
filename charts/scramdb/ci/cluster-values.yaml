@@ -1,0 +1,11 @@
+# The documented three node cluster: bootstrap_expect 2, replication factor 3,
+# hybrid nodes so every voter answers analytics locally.
+architecture: cluster
+replicaCount: 3
+license:
+  key: ci-placeholder-not-a-real-license
+resourcesPreset: medium
+persistence:
+  size: 500Gi
+walArchive:
+  destination: s3://scramdb-ci/wal

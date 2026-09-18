@@ -1,0 +1,9 @@
+.DS_Store
+.git/
+.gitignore
+.idea/
+*.tmproj
+.vscode/
+# Anchored, so it excludes the chart's own unittest suites (charts/scramdb/tests)
+# without also stripping templates/tests, which is where the `helm test` hooks live.
+/tests/

@@ -1,0 +1,149 @@
+suite: refusals and exposure
+templates:
+  - configmap.yaml
+  - statefulset.yaml
+  - service.yaml
+  - service-headless.yaml
+  - pdb.yaml
+tests:
+  - it: a cluster without a license is refused before it can crash loop
+    set:
+      architecture: cluster
+    template: statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "multi-node clustering is an Enterprise capability"
+
+  - it: a replication factor above the node count is refused
+    set:
+      architecture: cluster
+      replicaCount: 2
+      cluster:
+        replicationFactor: 3
+      license:
+        key: test
+    template: statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "cannot be placed on 2 voting node"
+
+  - it: an unauthenticated MCP surface cannot be put behind a LoadBalancer
+    set:
+      mcp:
+        auth: env
+      service:
+        type: LoadBalancer
+        exposeMcp: true
+    template: statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "no authentication at all"
+
+  - it: seeds shorter than the derived quota are refused
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      cluster:
+        seeds:
+          - other-0:7190
+    template: statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "only 1 seed"
+
+  - it: one existing claim cannot back several nodes
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      persistence:
+        existingClaim: shared
+    template: statefulset.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "one claim cannot back"
+
+  - it: exactly one password seeding variable reaches the engine
+    template: statefulset.yaml
+    set:
+      auth:
+        enabled: true
+        seedMethod: file
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SCRAMDB_INITIAL_PASSWORD_FILE
+            value: /etc/scramdb/auth/password
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SCRAMDB_RANDOM_INITIAL_PASSWORD
+            value: "yes"
+
+  - it: the random seeding method sets only its own variable
+    template: statefulset.yaml
+    set:
+      auth:
+        enabled: true
+        seedMethod: random
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SCRAMDB_RANDOM_INITIAL_PASSWORD
+            value: "yes"
+
+  - it: peers stay discoverable before they are ready
+    template: service-headless.yaml
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+      - equal:
+          path: spec.clusterIP
+          value: None
+
+  - it: every port a node opens is published on the headless service
+    template: service-headless.yaml
+    set:
+      architecture: cluster
+      license:
+        key: test
+    asserts:
+      - lengthEqual:
+          path: spec.ports
+          count: 4
+      - contains:
+          path: spec.ports
+          content:
+            name: mcp
+            port: 9191
+            targetPort: mcp
+            protocol: TCP
+
+  - it: a disruption budget guards the quorum in cluster mode only
+    templates:
+      - pdb.yaml
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: voter
+
+  - it: the shutdown budget covers the membership hand back
+    template: statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120

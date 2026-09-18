@@ -1,0 +1,8 @@
+{{- include "scramdb.validateValues" . }}
+{{- $root := . }}
+{{- range $index, $pool := (include "scramdb.voterPools" . | fromJsonArray) }}
+{{- if $index }}
+---
+{{- end }}
+{{ include "scramdb.statefulset" (dict "root" $root "pool" $pool "learner" false) }}
+{{- end }}
