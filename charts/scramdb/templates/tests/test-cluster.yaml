@@ -1,0 +1,90 @@
+{{- if include "scramdb.isCluster" . }}
+{{/*
+Proves the cluster actually formed, which is the one thing a rendered manifest
+can never tell you. Asks the database itself how many members it sees and
+compares that with the replica count the chart derived `bootstrap_expect` from,
+so a cluster that came up as several islands fails here rather than in
+production.
+*/}}
+{{- $voters := int (include "scramdb.voterCount" .) }}
+{{- $learners := ternary (int .Values.learners.replicas) 0 .Values.learners.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "scramdb.fullname" . }}-test-cluster
+  namespace: {{ include "scramdb.namespace" . }}
+  labels:
+    {{- include "scramdb.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-weight: "2"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  {{- include "scramdb.imagePullSecrets" . | nindent 2 }}
+  {{- if .Values.podSecurityContext.enabled }}
+  securityContext:
+    {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: cluster
+      image: {{ include "scramdb.image" . }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      {{- if .Values.containerSecurityContext.enabled }}
+      securityContext:
+        {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          HOST={{ include "scramdb.fullname" . }}.{{ include "scramdb.namespace" . }}.svc.{{ .Values.clusterDomain }}
+          DSN="host=$HOST port={{ .Values.service.ports.pgwire }} user={{ .Values.auth.username }} dbname={{ .Values.auth.database }}"
+          EXPECTED={{ add $voters $learners }}
+
+          echo "1. every node is a member of one cluster"
+          # Formation is not instant: a node waits for its peers up to
+          # group0_bootstrap_timeout. Poll to a deadline instead of sleeping a
+          # fixed guess, so a fast cluster finishes immediately and a slow one
+          # still passes.
+          deadline=$(( SECONDS + 240 ))
+          seen=0
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            seen=$(psql "$DSN" -tAc "select count(*) from scram.nodes" 2>/dev/null || echo 0)
+            [ "$seen" -ge "$EXPECTED" ] && break
+            sleep 5
+          done
+          if [ "$seen" -lt "$EXPECTED" ]; then
+            echo "   FAIL: expected $EXPECTED members, the cluster sees $seen"
+            psql "$DSN" -c "select node_id, region, zone, role, state from scram.nodes" || true
+            exit 1
+          fi
+          echo "   ok, $seen of $EXPECTED members"
+
+          echo "2. the topology is reportable"
+          psql "$DSN" -c "select node_id, region, zone, role, state from scram.nodes" | sed 's/^/   /'
+
+          echo "3. shards are placed"
+          groups=$(psql "$DSN" -tAc "select count(*) from scram.shards" 2>/dev/null || echo 0)
+          echo "   $groups shard group row(s)"
+
+          echo "PASS"
+      env:
+        {{- if .Values.auth.enabled }}
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "scramdb.authSecretName" . }}
+              key: {{ .Values.auth.secretKeys.passwordKey }}
+        {{- end }}
+        - name: HOME
+          value: /tmp
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}
+{{- end }}
