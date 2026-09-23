@@ -62,6 +62,7 @@ destination = {{ $.Values.walArchive.destination | quote }}
 # destination before relying on PITR.
 {{- end }}
 poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
+retention = {{ $.Values.walArchive.retention | quote }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]
@@ -102,8 +103,9 @@ tls_cert = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.certFilename }}"
 tls_key = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.keyFilename }}"
 tls_ca = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.caFilename }}"
 {{- end }}
-# Log compaction ([cluster.log_compaction]), applying committed writes
-# ([cluster.apply]), the commit protocol ([cluster.dilith]), cluster vector
+# Consensus ([cluster.consensus], its thread count included), log compaction
+# ([cluster.log_compaction]), applying committed writes ([cluster.apply]), the
+# commit protocol ([cluster.dilith]), cluster vector
 # settings ([cluster.vector]), joins across nodes ([cluster.distributed_join])
 # and the row exchange between nodes ([cluster.exchange]) run at their
 # defaults unless cluster.extraToml sets them.

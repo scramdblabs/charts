@@ -187,7 +187,11 @@ cluster:
   ## [cluster.exchange]). Written verbatim; a table left out runs at its defaults.
   extraToml: ""
   ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
-  ## below, which is the client-facing pgwire certificate.
+  ## below, which is the client-facing pgwire certificate. Every pod mounts the
+  ## same certificate, so it must carry every node name (the pod names, as DNS
+  ## SANs or CN) and the addresses peers dial the nodes at; a peer whose
+  ## certificate lacks the name it announces is refused.
+  ## scripts/cluster_tls_certs.sh in the ScramDB repository makes such certificates.
   tls:
     enabled: false
     ## Secret holding tls.crt, tls.key and ca.crt.
@@ -249,6 +253,12 @@ walArchive:
   ## chart warns about in cluster mode.
   destination: ""
   pollInterval: 5s
+  ## How long an archived segment is kept once it also lies before the base
+  ## backup's WAL position at [storage.wal.backup] destination; with no backup
+  ## there, age alone decides. The archive removes older segments by default; set
+  ## a longer duration (hours, "720h" for 30 days) to keep more history. The newest
+  ## segment always stays.
+  retention: 168h
 
 ## Client-facing TLS on the PostgreSQL wire protocol. Server side only; ScramDB
 ## does not request a client certificate. A missing, unreadable or mismatched

@@ -115,7 +115,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "destination": { "type": "string" },
-        "pollInterval": { "type": "string" }
+        "pollInterval": { "type": "string" },
+        "retention": { "type": "string" }
       }
     },
     "resourcesPreset": {

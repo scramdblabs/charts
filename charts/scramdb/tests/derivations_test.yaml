@@ -176,6 +176,8 @@ tests:
           recovery_timeout = "1s"
           [cluster.apply]
           reserve_io_cores = false
+          [cluster.consensus]
+          threads = 4
     template: configmap.yaml
     asserts:
       - matchRegex:
@@ -184,3 +186,22 @@ tests:
       - matchRegex:
           path: data["config.toml"]
           pattern: '\[cluster\.apply\]\nreserve_io_cores = false'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: '\[cluster\.consensus\]\nthreads = 4'
+
+  - it: the WAL archive keeps a week of segments unless walArchive.retention says otherwise
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'poll_interval = "5s"\nretention = "168h"'
+  - it: walArchive.retention sets the archive's retention
+    set:
+      walArchive:
+        retention: 720h
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'retention = "720h"'
