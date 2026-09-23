@@ -88,6 +88,29 @@ ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
    is worth the roll: a stale one would refuse to form the next time the cluster
    is bootstrapped from empty.
 {{- end }}
+{{- if and (include "scramdb.isCluster" .) .Values.cluster.tls.enabled }}
+
+6. Cluster TLS
+
+   Every pod mounts the certificate in Secret {{ .Values.cluster.tls.existingSecret }}. It must carry
+   these node names (a peer whose certificate lacks the name it announces is refused)
+   and the pods' stable DNS names, never a pod's address:
+
+     {{ include "scramdb.clusterTlsNames" . }}
+     *.{{ include "scramdb.discoveryDomain" . }}
+
+   From the ScramDB repository:
+
+     scripts/cluster_tls_certs.sh ./cluster-tls --shared {{ $fullname }} \
+       {{ include "scramdb.clusterTlsNames" . }} 'DNS:*.{{ include "scramdb.discoveryDomain" . }}'
+     kubectl create secret generic {{ .Values.cluster.tls.existingSecret }} --namespace {{ $ns }} \
+       --from-file={{ .Values.cluster.tls.certFilename }}=./cluster-tls/{{ $fullname }}.pem \
+       --from-file={{ .Values.cluster.tls.keyFilename }}=./cluster-tls/{{ $fullname }}-key.pem \
+       --from-file={{ .Values.cluster.tls.caFilename }}=./cluster-tls/ca.pem
+
+   A pod added past these names needs the certificate made again, listing it, under
+   the same CA (ca-key.pem stays off the cluster).
+{{- end }}
 
 {{- $warnings := list }}
 {{- if not .Values.auth.enabled }}

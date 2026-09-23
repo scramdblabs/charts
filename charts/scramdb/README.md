@@ -142,7 +142,7 @@ value that cannot go stale.
 | `auth.seedMethod` | `file` | `file` mounts the Secret and the value never enters the pod spec. `env` is the literal value, visible in `kubectl describe pod`. `random` lets the engine generate one and log it once. |
 | `mcp.auth` | `basic` | The MCP tool surface maps HTTP Basic credentials to a real database role. `env` leaves it unauthenticated, and the chart then refuses to publish it through a LoadBalancer or NodePort. |
 | `tls.enabled` | `false` | Server-side TLS on pgwire, from `tls.existingSecret`. A missing or mismatched certificate fails startup rather than falling back to plaintext. |
-| `cluster.tls.enabled` | `false` | Mutual TLS between nodes on the cluster transport. The certificate must carry every node name (the pod names) and the addresses peers dial the nodes at. |
+| `cluster.tls.enabled` | `false` | Mutual TLS between nodes on the cluster transport, from `cluster.tls.existingSecret`. The one shared certificate must carry every node name (the pod names) and the pods' stable DNS names (`*.<headless service>.<namespace>.svc.<clusterDomain>`), never their IPs; the install notes print the exact list and the command that makes it. |
 | `hba.rules` | `""` | A `pg_hba.conf` style rule file. Empty uses the built-in default: trust from localhost, password everywhere else. |
 | `networkPolicy.enabled` | `false` | The cluster transport is always restricted to this chart's own pods; the client and MCP ports follow `allowExternal`. |
 

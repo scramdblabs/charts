@@ -189,9 +189,12 @@ cluster:
   ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
   ## below, which is the client-facing pgwire certificate. Every pod mounts the
   ## same certificate, so it must carry every node name (the pod names, as DNS
-  ## SANs or CN) and the addresses peers dial the nodes at; a peer whose
-  ## certificate lacks the name it announces is refused.
-  ## scripts/cluster_tls_certs.sh in the ScramDB repository makes such certificates.
+  ## SANs or CN) and `*.<headless service>.<namespace>.svc.<clusterDomain>`; a
+  ## peer whose certificate lacks the name it announces is refused. Pod IPs are
+  ## not needed: a node dialing an address it discovered checks the name the
+  ## peer announces instead. The install notes print the exact names and the
+  ## `scripts/cluster_tls_certs.sh --shared` command (ScramDB repository) that
+  ## makes the certificate.
   tls:
     enabled: false
     ## Secret holding tls.crt, tls.key and ca.crt.

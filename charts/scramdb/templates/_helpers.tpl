@@ -185,6 +185,32 @@ when that list is set. Standalone is always exactly one pod.
 {{- $pools | toJson -}}
 {{- end }}
 
+{{/*
+Every node name the pods of this release announce (their pod names, which
+`node_name = "${NODE_NAME}"` makes them), comma separated: each voter pool's and
+the learners'. The one cluster TLS certificate must carry all of them.
+*/}}
+{{- define "scramdb.clusterTlsNames" -}}
+{{- $fullname := include "scramdb.fullname" . -}}
+{{- $names := list -}}
+{{- range (include "scramdb.voterPools" . | fromJsonArray) -}}
+{{- $set := $fullname -}}
+{{- if .suffix -}}
+{{- $set = printf "%s-%s" $fullname .suffix | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- range $i := until (int .replicas) -}}
+{{- $names = append $names (printf "%s-%d" $set $i) -}}
+{{- end -}}
+{{- end -}}
+{{- if and (include "scramdb.isCluster" .) .Values.learners.enabled -}}
+{{- $set := printf "%s-learner" $fullname | trunc 63 | trimSuffix "-" -}}
+{{- range $i := until (int .Values.learners.replicas) -}}
+{{- $names = append $names (printf "%s-%d" $set $i) -}}
+{{- end -}}
+{{- end -}}
+{{- join "," $names -}}
+{{- end }}
+
 {{/* Total voting nodes across every pool. Learners never count. */}}
 {{- define "scramdb.voterCount" -}}
 {{- $total := 0 -}}
