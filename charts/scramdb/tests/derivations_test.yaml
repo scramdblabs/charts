@@ -133,3 +133,33 @@ tests:
           path: metadata.labels["app.kubernetes.io/component"]
           value: learner
         template: statefulset-learner.yaml
+
+  - it: every node listens for interactive and bulk traffic on its own ports
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'cluster_interactive_listen = "0\.0\.0\.0:7191"'
+        template: configmap.yaml
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'cluster_bulk_listen = "0\.0\.0\.0:7192"'
+        template: configmap.yaml
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: interactive
+            containerPort: 7191
+            protocol: TCP
+        template: statefulset.yaml
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: bulk
+            containerPort: 7192
+            protocol: TCP
+        template: statefulset.yaml

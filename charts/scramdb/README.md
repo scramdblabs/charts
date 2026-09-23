@@ -164,7 +164,9 @@ decides which of them the client Service carries.
 | Port | Name | What listens |
 |-|-|-|
 | 5432 | pgwire | The PostgreSQL wire protocol. |
-| 7190 | cluster | The cluster transport, in cluster mode only. |
+| 7190 | cluster | The cluster transport's control traffic, in cluster mode only. |
+| 7191 | interactive | The cluster transport's interactive traffic, in cluster mode only. |
+| 7192 | bulk | The cluster transport's bulk traffic, in cluster mode only. |
 | 9090 | metrics | `/metrics` and `/health` on one HTTP listener. |
 | 9191 | mcp | The Semantic AI MCP server, started in-process by the engine. |
 

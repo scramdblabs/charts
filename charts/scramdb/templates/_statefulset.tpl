@@ -242,6 +242,12 @@ spec:
             - name: cluster
               containerPort: 7190
               protocol: TCP
+            - name: interactive
+              containerPort: 7191
+              protocol: TCP
+            - name: bulk
+              containerPort: 7192
+              protocol: TCP
             {{- end }}
             {{- if $.Values.metrics.enabled }}
             - name: metrics

@@ -67,6 +67,10 @@ poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
 [cluster]
 node_name = "${NODE_NAME}"
 cluster_listen = "0.0.0.0:7190"
+# Interactive and bulk traffic between nodes on their own ports (peers learn them
+# from the control connection on 7190).
+cluster_interactive_listen = "0.0.0.0:7191"
+cluster_bulk_listen = "0.0.0.0:7192"
 # Every pod of every pool answers to <pod>.<headless service>, so one template
 # line is correct for all of them.
 advertise_addr = "${NODE_NAME}.{{ include "scramdb.discoveryDomain" $ }}:7190"

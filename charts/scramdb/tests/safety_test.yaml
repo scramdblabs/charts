@@ -116,7 +116,21 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.ports
-          count: 4
+          count: 6
+      - contains:
+          path: spec.ports
+          content:
+            name: interactive
+            port: 7191
+            targetPort: interactive
+            protocol: TCP
+      - contains:
+          path: spec.ports
+          content:
+            name: bulk
+            port: 7192
+            targetPort: bulk
+            protocol: TCP
       - contains:
           path: spec.ports
           content:

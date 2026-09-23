@@ -27,9 +27,14 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # The cluster transport between this chart's own pods.
+    # The cluster transport between this chart's own pods: control, interactive and
+    # bulk traffic.
     - ports:
         - port: 7190
+          protocol: TCP
+        - port: 7191
+          protocol: TCP
+        - port: 7192
           protocol: TCP
       to:
         - podSelector:
@@ -45,6 +50,10 @@ spec:
     # speaking the cluster protocol.
     - ports:
         - port: 7190
+          protocol: TCP
+        - port: 7191
+          protocol: TCP
+        - port: 7192
           protocol: TCP
       from:
         - podSelector:
