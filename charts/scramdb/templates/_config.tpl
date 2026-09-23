@@ -103,7 +103,9 @@ tls_key = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.keyFilename }}"
 tls_ca = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.caFilename }}"
 {{- end }}
 # Log compaction ([cluster.log_compaction]), applying committed writes
-# ([cluster.apply]) and the commit protocol ([cluster.dilith]) run at their
+# ([cluster.apply]), the commit protocol ([cluster.dilith]), cluster vector
+# settings ([cluster.vector]), joins across nodes ([cluster.distributed_join])
+# and the row exchange between nodes ([cluster.exchange]) run at their
 # defaults unless cluster.extraToml sets them.
 {{- with $.Values.cluster.extraToml }}
 {{ tpl . $ }}
