@@ -105,10 +105,10 @@ tls_ca = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.caFilename }}"
 {{- end }}
 # Consensus ([cluster.consensus], its thread count included), log compaction
 # ([cluster.log_compaction]), applying committed writes ([cluster.apply]), the
-# commit protocol ([cluster.dilith]), cluster vector
-# settings ([cluster.vector]), joins across nodes ([cluster.distributed_join])
-# and the row exchange between nodes ([cluster.exchange]) run at their
-# defaults unless cluster.extraToml sets them.
+# commit protocol ([cluster.dilith]), how long a COMMIT waits for it
+# ([cluster.transactions]), cluster vector settings ([cluster.vector]), joins
+# across nodes ([cluster.distributed_join]) and the row exchange between nodes
+# ([cluster.exchange]) run at their defaults unless cluster.extraToml sets them.
 {{- with $.Values.cluster.extraToml }}
 {{ tpl . $ }}
 {{- end }}
