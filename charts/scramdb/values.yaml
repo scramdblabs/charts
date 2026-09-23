@@ -181,8 +181,9 @@ cluster:
   ## alongside a derived `bootstrapExpect` is refused at boot; set both or neither.
   seeds: []
   ## Extra TOML appended inside the [cluster] section, for the sub-tables this
-  ## chart does not model ([cluster.swim], [cluster.raft], [cluster.rebalance],
-  ## [cluster.txn]). Written verbatim.
+  ## chart does not model ([cluster.swim], [cluster.consensus], [cluster.rebalance],
+  ## [cluster.txn], [cluster.transport], [cluster.log_compaction], [cluster.apply],
+  ## [cluster.dilith]). Written verbatim; a table left out runs at its defaults.
   extraToml: ""
   ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
   ## below, which is the client-facing pgwire certificate.

@@ -163,3 +163,24 @@ tests:
             containerPort: 7192
             protocol: TCP
         template: statefulset.yaml
+
+  - it: the cluster sub-tables the chart does not model pass through cluster.extraToml
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      cluster:
+        extraToml: |
+          [cluster.dilith]
+          recovery_timeout = "1s"
+          [cluster.apply]
+          reserve_io_cores = false
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: '\[cluster\.dilith\]\nrecovery_timeout = "1s"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: '\[cluster\.apply\]\nreserve_io_cores = false'

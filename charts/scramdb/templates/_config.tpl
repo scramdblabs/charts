@@ -102,6 +102,9 @@ tls_cert = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.certFilename }}"
 tls_key = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.keyFilename }}"
 tls_ca = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.caFilename }}"
 {{- end }}
+# Log compaction ([cluster.log_compaction]), applying committed writes
+# ([cluster.apply]) and the commit protocol ([cluster.dilith]) run at their
+# defaults unless cluster.extraToml sets them.
 {{- with $.Values.cluster.extraToml }}
 {{ tpl . $ }}
 {{- end }}
