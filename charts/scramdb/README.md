@@ -111,6 +111,11 @@ learners:
   replicas: 2
 ```
 
+A distributed read entered on any node runs its fragments on the learners first,
+then on followers, and on a group's leader only when nothing else holds the
+buckets, so analytics load the voters least. `cluster.fragmentAnyReplica: false`
+keeps every fragment on the buckets' owners instead.
+
 ## Scaling
 
 Adding a node needs no configuration change: a new pod finds the formed cluster

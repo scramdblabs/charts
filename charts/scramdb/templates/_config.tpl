@@ -56,9 +56,9 @@ enabled = {{ $.Values.walArchive.enabled }}
 destination = {{ $.Values.walArchive.destination | quote }}
 {{- else if $.Values.walArchive.enabled }}
 # No walArchive.destination set, so this derives to a node-local path. In a
-# cluster only the current leader ships segments and a new leader resumes from
-# the destination's own listing, so a local path leaves no node holding a
-# complete point-in-time history. Set an s3://, gs://, az:// or shared file://
+# cluster each group's log is shipped by whichever node leads the group, so a
+# local path scatters each group's history over the nodes that led it and no
+# node holds a restorable history. Set an s3://, gs://, az:// or shared file://
 # destination before relying on PITR.
 {{- end }}
 poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
@@ -91,6 +91,7 @@ dns_name = {{ include "scramdb.discoveryDomain" $ | quote }}
 dns_refresh = {{ $.Values.cluster.dnsRefresh | quote }}
 replication_factor = {{ $.Values.cluster.replicationFactor }}
 group0_bootstrap_timeout = {{ $.Values.cluster.group0BootstrapTimeout | quote }}
+fragment_any_replica = {{ $.Values.cluster.fragmentAnyReplica }}
 {{- if $learner }}
 # A learner hosts replicated data for local reads, owns no buckets and is never
 # promoted to a voter.

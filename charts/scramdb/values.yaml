@@ -180,11 +180,22 @@ cluster:
   ## Static peers, for joining a cluster this chart does not own. Setting this
   ## alongside a derived `bootstrapExpect` is refused at boot; set both or neither.
   seeds: []
+  ## Where the fragments of a distributed read run. true places them on any
+  ## replica that holds the buckets, learners first (in the node's own region: a
+  ## learner, then a follower, then the group's leader), so analytics load the
+  ## leaders least; a replica that cannot serve the read refuses and another reads
+  ## its buckets. false keeps every fragment on the buckets' owners.
+  fragmentAnyReplica: true
   ## Extra TOML appended inside the [cluster] section, for the sub-tables this
   ## chart does not model ([cluster.swim], [cluster.consensus], [cluster.rebalance],
   ## [cluster.transactions], [cluster.transport], [cluster.log_compaction],
   ## [cluster.apply], [cluster.dilith], [cluster.vector], [cluster.distributed_join],
   ## [cluster.exchange]). Written verbatim; a table left out runs at its defaults.
+  ## For example, [cluster.consensus] log_segment_size pins the segment size of a
+  ## node's shared raft log (default: a thousandth of the data volume, 64MB to
+  ## 256MB), and [cluster.dilith] copy_stage_idle_timeout how long a group keeps
+  ## the staged rows of a COPY whose node went silent (default: ten election
+  ## timeouts).
   extraToml: ""
   ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
   ## below, which is the client-facing pgwire certificate. Every pod mounts the
@@ -244,10 +255,11 @@ metrics:
 
 ## WAL archiving, which is what makes point-in-time recovery and branching work.
 ##
-## In a cluster only the current group0 leader ships segments, and a failed-over
-## leader resumes from the DESTINATION's own listing. A node-local destination
-## therefore fragments the archive across leaders: each one starts a fresh archive
-## and no node ever holds a complete history. Point this at storage every node can
+## In a cluster every node ships its own WAL under its own stream, and each shard
+## group's log is shipped by whichever node leads the group at the time, resuming
+## from the DESTINATION's own listing after a leader change. A node-local
+## destination therefore scatters each group's history over the nodes that led it
+## and no node holds a restorable history. Point this at storage every node can
 ## reach.
 walArchive:
   enabled: true

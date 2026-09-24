@@ -81,6 +81,7 @@
         "dnsRefresh": { "type": "string" },
         "group0BootstrapTimeout": { "type": "string" },
         "seeds": { "type": "array", "items": { "type": "string" } },
+        "fragmentAnyReplica": { "type": "boolean" },
         "extraToml": { "type": "string" },
         "tls": {
           "type": "object",

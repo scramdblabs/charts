@@ -164,6 +164,53 @@ tests:
             protocol: TCP
         template: statefulset.yaml
 
+  - it: fragments run on any covering replica unless cluster.fragmentAnyReplica pins the owners
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'fragment_any_replica = true'
+
+  - it: cluster.fragmentAnyReplica false keeps fragments on the buckets' owners
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      cluster:
+        fragmentAnyReplica: false
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'fragment_any_replica = false'
+
+  - it: the shared raft log and COPY stage keys pass through cluster.extraToml
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      cluster:
+        extraToml: |
+          [cluster.consensus]
+          log_segment_size = "128MB"
+          [cluster.dilith]
+          copy_stage_idle_timeout = "20s"
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: '\[cluster\.consensus\]\nlog_segment_size = "128MB"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: '\[cluster\.dilith\]\ncopy_stage_idle_timeout = "20s"'
+
   - it: the cluster sub-tables the chart does not model pass through cluster.extraToml
     set:
       architecture: cluster
