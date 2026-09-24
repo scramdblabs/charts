@@ -77,6 +77,14 @@ spec:
           annotations:
             summary: WAL archive is behind
             description: "{{ `{{ $value }}` }} segments on {{ `{{ $labels.instance }}` }} have not reached the archive."
+        - alert: ScramDBWalFlushStalled
+          expr: scramdb_wal_flush_stalled > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: The WAL device has stopped making progress
+            description: "Commits on {{ `{{ $labels.instance }}` }} are waiting for a log device that has made no progress for over a minute. Nothing has failed; check the storage device."
         {{- if include "scramdb.isCluster" . }}
         - alert: ScramDBQuarantinedGroup
           expr: scramdb_cluster_quarantined_groups > 0
