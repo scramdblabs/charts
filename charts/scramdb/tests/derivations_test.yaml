@@ -32,6 +32,23 @@ tests:
           path: data["config.toml"]
           pattern: "columnar_replica = true"
 
+  - it: every transport lane listens on its own set port
+    set:
+      architecture: cluster
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'cluster_listen = "0\.0\.0\.0:7190"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'cluster_interactive_listen = "0\.0\.0\.0:7191"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'cluster_bulk_listen = "0\.0\.0\.0:7192"'
+
   - it: five voters derive bootstrap_expect 4 and no hybrid nodes
     set:
       architecture: cluster

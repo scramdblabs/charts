@@ -5,6 +5,7 @@ templates:
   - service.yaml
   - service-headless.yaml
   - pdb.yaml
+  - networkpolicy.yaml
 tests:
   - it: a cluster without a license is refused before it can crash loop
     set:
@@ -107,6 +108,9 @@ tests:
           path: spec.clusterIP
           value: None
 
+  # Six, not four: a cluster node opens the transport's interactive (7191) and bulk
+  # (7192) lanes beside its control port (the engine's ClusterConfig::lane_listen),
+  # which this list left out.
   - it: every port a node opens is published on the headless service
     template: service-headless.yaml
     set:
@@ -139,6 +143,26 @@ tests:
             targetPort: mcp
             protocol: TCP
 
+  - it: every cluster pod declares the transport's three lanes
+    template: statefulset.yaml
+    set:
+      architecture: cluster
+      license:
+        key: test
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: interactive
+            containerPort: 7191
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: bulk
+            containerPort: 7192
+            protocol: TCP
+
   - it: a disruption budget guards the quorum in cluster mode only
     templates:
       - pdb.yaml
@@ -161,3 +185,29 @@ tests:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 120
+
+  - it: the network policy lets the pods reach each other on all three transport lanes
+    template: networkpolicy.yaml
+    set:
+      networkPolicy:
+        enabled: true
+        allowExternalEgress: false
+    asserts:
+      - equal:
+          path: spec.ingress[0].ports
+          value:
+            - port: 7190
+              protocol: TCP
+            - port: 7191
+              protocol: TCP
+            - port: 7192
+              protocol: TCP
+      - equal:
+          path: spec.egress[1].ports
+          value:
+            - port: 7190
+              protocol: TCP
+            - port: 7191
+              protocol: TCP
+            - port: 7192
+              protocol: TCP

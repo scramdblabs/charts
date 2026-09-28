@@ -67,9 +67,11 @@ retention = {{ $.Values.walArchive.retention | quote }}
 
 [cluster]
 node_name = "${NODE_NAME}"
+# Three listeners: control traffic (the port advertise_addr names), interactive
+# and bulk traffic (peers learn those two from the control connection). Set, so
+# a taken port fails the start instead of moving a lane to a port the kernel
+# picks, which neither the Service nor the NetworkPolicy would carry.
 cluster_listen = "0.0.0.0:7190"
-# Interactive and bulk traffic between nodes on their own ports (peers learn them
-# from the control connection on 7190).
 cluster_interactive_listen = "0.0.0.0:7191"
 cluster_bulk_listen = "0.0.0.0:7192"
 # Every pod of every pool answers to <pod>.<headless service>, so one template

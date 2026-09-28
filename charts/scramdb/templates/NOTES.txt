@@ -48,6 +48,9 @@ ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
 {{ if .Values.metrics.enabled }}
    Metrics and health: port {{ .Values.metrics.containerPort }}, paths /metrics and /health.
 {{- end }}
+{{- if include "scramdb.isCluster" . }}
+   Cluster transport: ports 7190, 7191 and 7192, between this release's pods only.
+{{- end }}
 {{- if .Values.mcp.enabled }}
    Semantic AI MCP: port {{ .Values.mcp.containerPort }}, authentication {{ .Values.mcp.auth }}.
    {{- if eq .Values.mcp.auth "basic" }}
@@ -59,9 +62,13 @@ ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
 4. Watch the cluster form
 
      kubectl get pods --namespace {{ $ns }} -l app.kubernetes.io/instance={{ .Release.Name }} -w
-     kubectl logs --namespace {{ $ns }} {{ $fullname }}{{ if .Values.regions }}-{{ (index .Values.regions 0).name }}{{ end }}-0 | grep -E "cluster transport: bound|swim: member up"
 
-   Then ask the cluster about itself:
+   A pod turns Ready once the cluster has formed. The formation lines
+   ("cluster transport: bound", "swim: member up") log at info: set
+   logLevel=info to see them in kubectl logs. Then ask the cluster about itself:
+
+     kubectl exec --namespace {{ $ns }} {{ $fullname }}{{ if .Values.regions }}-{{ (index .Values.regions 0).name }}{{ end }}-0 -- \
+       psql -h 127.0.0.1 -U {{ .Values.auth.username }} -d {{ .Values.auth.database }} -c "SELECT node_id, role, state FROM scram.nodes"
 
      SELECT * FROM scram.nodes;
      SELECT * FROM scram.shards;
