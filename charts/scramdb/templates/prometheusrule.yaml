@@ -159,6 +159,14 @@ spec:
           annotations:
             summary: A listening session missed a wake-up
             description: "{{ `{{ $labels.instance }}` }} had notifications waiting for an idle session with nothing to wake it."
+        - alert: ScramDBPreparedTransactionOld
+          expr: scramdb_prepared_xacts_oldest_age_seconds > 3600
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A prepared transaction has waited over an hour
+            description: "{{ `{{ $labels.instance }}` }} holds a prepared transaction prepared {{ `{{ $value }}` }} seconds ago. It keeps its locks until COMMIT PREPARED or ROLLBACK PREPARED; pg_prepared_xacts lists it."
         - alert: ScramDBBufferPoolWatchdog
           expr: increase(scramdb_pool_watchdog_escalations_total[15m]) > 0
           for: 5m
