@@ -166,7 +166,7 @@ spec:
             severity: warning
           annotations:
             summary: A prepared transaction has waited over an hour
-            description: "{{ `{{ $labels.instance }}` }} holds a prepared transaction prepared {{ `{{ $value }}` }} seconds ago. It keeps its locks until COMMIT PREPARED or ROLLBACK PREPARED; pg_prepared_xacts lists it."
+            description: "{{ `{{ $labels.instance }}` }} reports the oldest prepared transaction of its node or cluster prepared {{ `{{ $value }}` }} seconds ago (a cluster's is read about once a minute). It keeps its locks until COMMIT PREPARED or ROLLBACK PREPARED; pg_prepared_xacts lists it."
         - alert: ScramDBBufferPoolWatchdog
           expr: increase(scramdb_pool_watchdog_escalations_total[15m]) > 0
           for: 5m
