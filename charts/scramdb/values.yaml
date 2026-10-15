@@ -274,6 +274,13 @@ walArchive:
   ## a longer duration (hours, "720h" for 30 days) to keep more history. The newest
   ## segment always stays.
   retention: 168h
+  ## The most bytes the archive may hold ("200GB"). The oldest segments no backup
+  ## or branch needs go first once it is passed. Empty is a quarter of the data
+  ## volume, measured at start.
+  maxSize: ""
+  ## Store each archived segment compressed (one zstd frame per file). A compressed
+  ## archive reads back the same as a raw one, and a mixed one reads too.
+  compress: true
 
 ## Client-facing TLS on the PostgreSQL wire protocol. Server side only; ScramDB
 ## does not request a client certificate. A missing, unreadable or mismatched

@@ -63,6 +63,10 @@ destination = {{ $.Values.walArchive.destination | quote }}
 {{- end }}
 poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
 retention = {{ $.Values.walArchive.retention | quote }}
+{{- if $.Values.walArchive.maxSize }}
+max_size = {{ $.Values.walArchive.maxSize | quote }}
+{{- end }}
+compress = {{ $.Values.walArchive.compress }}
 
 [resilience]
 # Seconds-valued durations are whole seconds ("0" is off, or the OS default for

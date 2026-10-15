@@ -339,3 +339,23 @@ tests:
       - matchRegex:
           path: data["config.toml"]
           pattern: "(?s)\\[resilience\\].*\\[cluster\\]"
+
+  - it: the WAL archive compresses segments and leaves its size cap to the engine by default
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'retention = "168h"\ncompress = true'
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "max_size"
+  - it: walArchive.maxSize and walArchive.compress reach the archive table
+    set:
+      walArchive:
+        maxSize: 200GB
+        compress: false
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'max_size = "200GB"\ncompress = false'

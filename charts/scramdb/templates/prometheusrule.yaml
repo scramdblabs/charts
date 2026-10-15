@@ -102,6 +102,22 @@ spec:
           annotations:
             summary: Cluster peers are reconnecting repeatedly
             description: "{{ `{{ $labels.instance }}` }} lost a peer connection more than five times in fifteen minutes."
+        - alert: ScramDBStageMismatch
+          expr: increase(scramdb_cluster_rekey_stage_mismatches_total[15m]) + increase(scramdb_cluster_copy_stage_mismatches_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A replica stopped at a staged copy that does not match its vote
+            description: "{{ `{{ $labels.instance }}` }} has a replica that refused to apply a re-key or COPY entry because its stage was not the one the entry names."
+        - alert: ScramDBMigrationStuck
+          expr: scramdb_cluster_migration_tables_pending > 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: A table migration has not finished
+            description: "{{ `{{ $labels.instance }}` }} still has {{ `{{ $value }}` }} table(s) with a migration it has not finished. SHOW CLUSTER lists the pending count per node."
         - alert: ScramDBPartitionFrameDrops
           expr: increase(scramdb_cluster_partition_drops_total[15m]) > 0
           for: 5m
