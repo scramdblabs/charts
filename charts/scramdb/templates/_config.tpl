@@ -63,6 +63,15 @@ destination = {{ $.Values.walArchive.destination | quote }}
 {{- end }}
 poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
 retention = {{ $.Values.walArchive.retention | quote }}
+
+[resilience]
+# Seconds-valued durations are whole seconds ("0" is off, or the OS default for
+# the keepalive interval). A session's own SET overrides each for that session.
+idle_session_timeout = {{ $.Values.config.idleSessionTimeout | quote }}
+idle_in_transaction_session_timeout = {{ $.Values.config.idleInTransactionSessionTimeout | quote }}
+tcp_keepalives_idle = {{ $.Values.config.tcpKeepalivesIdle | quote }}
+tcp_keepalives_interval = {{ $.Values.config.tcpKeepalivesInterval | quote }}
+tcp_keepalives_count = {{ $.Values.config.tcpKeepalivesCount }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

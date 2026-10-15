@@ -269,3 +269,73 @@ tests:
       - matchRegex:
           path: data["config.toml"]
           pattern: 'retention = "720h"'
+
+  - it: the connection liveness defaults reach the config for every architecture
+    set:
+      architecture: standalone
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "\\[resilience\\]\\n"
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'idle_session_timeout = "0"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'idle_in_transaction_session_timeout = "0"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'tcp_keepalives_idle = "60s"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'tcp_keepalives_interval = "0"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "tcp_keepalives_count = 0"
+
+  - it: the idle timeouts and keepalives are set from the chart values
+    set:
+      config:
+        idleSessionTimeout: 15m
+        idleInTransactionSessionTimeout: 30s
+        tcpKeepalivesIdle: 45s
+        tcpKeepalivesInterval: 10s
+        tcpKeepalivesCount: 4
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'idle_session_timeout = "15m"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'idle_in_transaction_session_timeout = "30s"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'tcp_keepalives_idle = "45s"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'tcp_keepalives_interval = "10s"'
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "tcp_keepalives_count = 4"
+
+  - it: a duration without a unit is refused so a bare number cannot read as milliseconds
+    set:
+      config:
+        idleSessionTimeout: "600"
+    template: configmap.yaml
+    asserts:
+      - failedTemplate: {}
+
+  - it: the resilience table sits before the cluster table
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "(?s)\\[resilience\\].*\\[cluster\\]"

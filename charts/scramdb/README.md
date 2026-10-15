@@ -207,6 +207,13 @@ The archive removes segments older than `walArchive.retention` (default `168h`, 
 days) once they also lie before the latest base backup; set a longer duration to keep
 more point-in-time history.
 
+Connection liveness follows PostgreSQL's settings of the same names:
+`config.idleSessionTimeout` and `config.idleInTransactionSessionTimeout` close a
+session that sat idle (SQLSTATE 57P05 and 25P03), and `config.tcpKeepalivesIdle`,
+`config.tcpKeepalivesInterval` and `config.tcpKeepalivesCount` tune how a
+connection notices a vanished client. Durations need a unit, and `0` disables a
+timeout. A session's own `SET` overrides each one for that session.
+
 ## Full values
 
 Every value is documented inline in [values.yaml](values.yaml), and

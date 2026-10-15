@@ -111,6 +111,34 @@
         "containerPort": { "type": "integer", "minimum": 0, "maximum": 65535 }
       }
     },
+    "config": {
+      "type": "object",
+      "properties": {
+        "existingConfigMap": { "type": "string" },
+        "extraToml": { "type": "string" },
+        "idleSessionTimeout": {
+          "type": "string",
+          "pattern": "^(0|[0-9]+(s|m|h))$",
+          "description": "Whole-second duration; 0 disables the timeout."
+        },
+        "idleInTransactionSessionTimeout": {
+          "type": "string",
+          "pattern": "^(0|[0-9]+(s|m|h))$",
+          "description": "Whole-second duration; 0 disables the timeout."
+        },
+        "tcpKeepalivesIdle": {
+          "type": "string",
+          "pattern": "^(0|[0-9]+(s|m|h))$",
+          "description": "Whole-second duration; 0 keeps the operating system value."
+        },
+        "tcpKeepalivesInterval": {
+          "type": "string",
+          "pattern": "^(0|[0-9]+(s|m|h))$",
+          "description": "Whole-second duration; 0 keeps the operating system value."
+        },
+        "tcpKeepalivesCount": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+      }
+    },
     "walArchive": {
       "type": "object",
       "properties": {

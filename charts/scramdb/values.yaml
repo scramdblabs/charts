@@ -310,6 +310,20 @@ config:
   jitEnabled: true
   ## Runtime dlopen with a graceful CPU-only fallback when no device is present.
   gpuEnabled: true
+  ## Connection liveness, as PostgreSQL's settings of the same names. A session's
+  ## own SET overrides each one for that session; RESET returns to these values.
+  ## Durations need a unit ("30s", "5m", "1h"), a bare number is milliseconds; "0" disables a timeout.
+  ## idleSessionTimeout closes a session that sent nothing for that long
+  ## (SQLSTATE 57P05), idleInTransactionSessionTimeout one idle inside a
+  ## transaction (25P03).
+  idleSessionTimeout: "0"
+  idleInTransactionSessionTimeout: "0"
+  ## TCP keepalive probes: seconds idle before the first probe, seconds between
+  ## probes and unanswered probes before the connection is dropped. "0" keeps the
+  ## operating system's value for the interval and the count.
+  tcpKeepalivesIdle: "60s"
+  tcpKeepalivesInterval: "0"
+  tcpKeepalivesCount: 0
 
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##

@@ -119,6 +119,30 @@ spec:
           annotations:
             summary: Heavy statements are parked waiting for execution memory
             description: "{{ `{{ $labels.instance }}` }} has statements queued past the admission warning deadline. Raise memory, or lower concurrency."
+        - alert: ScramDBServerStalled
+          expr: scramdb_server_stalled_seconds > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: The server has stopped finishing statements
+            description: "{{ `{{ $labels.instance }}` }} has statements in flight and none has finished for {{ `{{ $value }}` }} seconds. Its log names what they wait on."
+        - alert: ScramDBAdmissionRefusals
+          expr: increase(scramdb_admission_parked_too_long_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Statements are ending with a server busy error
+            description: "{{ `{{ $labels.instance }}` }} ended statements that waited the longest it allows for memory. Raise memory, or lower concurrency."
+        - alert: ScramDBNotificationWakeMissed
+          expr: increase(scramdb_notify_listeners_rewoken_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A listening session missed a wake-up
+            description: "{{ `{{ $labels.instance }}` }} had notifications waiting for an idle session with nothing to wake it."
         - alert: ScramDBBufferPoolWatchdog
           expr: increase(scramdb_pool_watchdog_escalations_total[15m]) > 0
           for: 5m
