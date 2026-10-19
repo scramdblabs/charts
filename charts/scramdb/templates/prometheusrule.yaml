@@ -85,6 +85,14 @@ spec:
           annotations:
             summary: The WAL device has stopped making progress
             description: "Commits on {{ `{{ $labels.instance }}` }} are waiting for a log device that has made no progress for over a minute. Nothing has failed; check the storage device."
+        - alert: ScramDBGpuKernelErrors
+          expr: increase(scramdb_gpu_kernel_errors_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: The GPU is refusing kernel launches
+            description: "{{ `{{ $labels.instance }}` }} had GPU kernel launches refused; its queries run on the CPU, answers unchanged. Check the GPU and its driver."
         {{- if include "scramdb.isCluster" . }}
         - alert: ScramDBQuarantinedGroup
           expr: scramdb_cluster_quarantined_groups > 0
