@@ -1,0 +1,59 @@
+suite: cluster TLS certificate names
+templates:
+  - NOTES.txt
+tests:
+  - it: the install notes list every node name the one shared certificate must carry, and no IP
+    set:
+      architecture: cluster
+      replicaCount: 3
+      license:
+        key: test
+      learners:
+        enabled: true
+        replicas: 2
+      cluster:
+        tls:
+          enabled: true
+          existingSecret: cluster-tls
+    release:
+      name: rel
+      namespace: db
+    asserts:
+      - matchRegexRaw:
+          pattern: "rel-scramdb-0,rel-scramdb-1,rel-scramdb-2,rel-scramdb-learner-0,rel-scramdb-learner-1"
+      - matchRegexRaw:
+          pattern: "\\*\\.rel-scramdb-headless\\.db\\.svc\\.cluster\\.local"
+      - matchRegexRaw:
+          pattern: "cluster_tls_certs\\.sh \\./cluster-tls --shared rel-scramdb"
+      - notMatchRegexRaw:
+          pattern: "IP:[0-9]"
+
+  - it: region pools each contribute their pod names
+    set:
+      architecture: cluster
+      license:
+        key: test
+      regions:
+        - name: eu
+          replicas: 2
+        - name: us
+          replicas: 1
+      cluster:
+        tls:
+          enabled: true
+          existingSecret: cluster-tls
+    release:
+      name: rel
+      namespace: db
+    asserts:
+      - matchRegexRaw:
+          pattern: "rel-scramdb-eu-0,rel-scramdb-eu-1,rel-scramdb-us-0"
+
+  - it: without cluster TLS the notes say nothing about certificates
+    set:
+      architecture: cluster
+      license:
+        key: test
+    asserts:
+      - notMatchRegexRaw:
+          pattern: "Cluster TLS"

@@ -27,9 +27,14 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # The cluster transport between this chart's own pods.
+    # The cluster transport between this chart's own pods: control, interactive and
+    # bulk traffic.
     - ports:
         - port: 7190
+          protocol: TCP
+        - port: 7191
+          protocol: TCP
+        - port: 7192
           protocol: TCP
       to:
         - podSelector:
@@ -42,9 +47,13 @@ spec:
   ingress:
     # Peer to peer traffic on the cluster transport is always restricted to this
     # chart's own pods, whatever allowExternal says: nothing else has business
-    # speaking the cluster protocol.
+    # speaking the cluster protocol. All three lanes: control, interactive and bulk.
     - ports:
         - port: 7190
+          protocol: TCP
+        - port: 7191
+          protocol: TCP
+        - port: 7192
           protocol: TCP
       from:
         - podSelector:

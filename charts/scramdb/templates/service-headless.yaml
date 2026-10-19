@@ -39,6 +39,14 @@ spec:
       port: 7190
       targetPort: cluster
       protocol: TCP
+    - name: interactive
+      port: 7191
+      targetPort: interactive
+      protocol: TCP
+    - name: bulk
+      port: 7192
+      targetPort: bulk
+      protocol: TCP
     {{- end }}
     {{- if .Values.metrics.enabled }}
     - name: metrics
