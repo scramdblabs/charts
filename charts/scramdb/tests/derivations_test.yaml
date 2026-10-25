@@ -359,3 +359,18 @@ tests:
       - matchRegex:
           path: data["config.toml"]
           pattern: 'max_size = "200GB"\ncompress = false'
+  - it: autonomy is on by default and autonomy.enabled reaches the config
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "\\[autonomy\\]\nenabled = true"
+  - it: autonomy.enabled false is written to the config
+    set:
+      autonomy:
+        enabled: false
+    template: configmap.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "\\[autonomy\\]\nenabled = false"

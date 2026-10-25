@@ -332,6 +332,13 @@ config:
   tcpKeepalivesInterval: "0"
   tcpKeepalivesCount: 0
 
+## Ejder, the engine's self-driving loop. It watches the engine's own counters,
+## changes settings and runs maintenance, checks each change against a guard and
+## undoes one that hurts. It ships installed and needs nothing else set; false
+## turns it off. Every other [autonomy] key goes in config.extraToml.
+autonomy:
+  enabled: true
+
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##
 ## `medium` is the reference production shape: 16 vCPU and 32 GiB, matching the

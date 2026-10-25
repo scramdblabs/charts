@@ -219,6 +219,11 @@ session that sat idle (SQLSTATE 57P05 and 25P03), and `config.tcpKeepalivesIdle`
 connection notices a vanished client. Durations need a unit, and `0` disables a
 timeout. A session's own `SET` overrides each one for that session.
 
+Ejder, the self-driving loop, runs by default. `autonomy.enabled: false` turns it
+off in the generated config; a node's `SCRAMDB_AUTONOMY=off` does the same. The
+`ScramDBAutonomyParked` and `ScramDBAutonomyRecordsFailing` alerts watch it. Its other
+`[autonomy]` keys go in `config.extraToml`.
+
 ## Full values
 
 Every value is documented inline in [values.yaml](values.yaml), and

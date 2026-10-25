@@ -76,6 +76,9 @@ idle_in_transaction_session_timeout = {{ $.Values.config.idleInTransactionSessio
 tcp_keepalives_idle = {{ $.Values.config.tcpKeepalivesIdle | quote }}
 tcp_keepalives_interval = {{ $.Values.config.tcpKeepalivesInterval | quote }}
 tcp_keepalives_count = {{ $.Values.config.tcpKeepalivesCount }}
+
+[autonomy]
+enabled = {{ $.Values.autonomy.enabled }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

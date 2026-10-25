@@ -135,6 +135,22 @@ spec:
             summary: Distributed query frames are being dropped
             description: "{{ `{{ $labels.instance }}` }} dropped exchange frames, which points at a saturated cluster transport."
         {{- end }}
+        - alert: ScramDBAutonomyParked
+          expr: scramdb_autonomy_parked == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: The self-driving loop stopped deciding
+            description: "{{ `{{ $labels.instance }}` }} parked its self-driving loop after repeated failures. Settings stay where they are; SELECT * FROM scram_autonomy names the reason."
+        - alert: ScramDBAutonomyRecordsFailing
+          expr: increase(scramdb_autonomy_audit_failures_total[15m]) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Self-driving decisions are not being recorded
+            description: "{{ `{{ $labels.instance }}` }} could not write its self-driving decision records. Check the autonomy schema and the data volume."
         - alert: ScramDBAdmissionStalls
           expr: increase(scramdb_admission_waited_past_deadline_total[15m]) > 0
           for: 15m
