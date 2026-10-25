@@ -77,6 +77,22 @@ spec:
           annotations:
             summary: WAL archive is behind
             description: "{{ `{{ $value }}` }} segments on {{ `{{ $labels.instance }}` }} have not reached the archive."
+        - alert: ScramDBWalFlushStalled
+          expr: scramdb_wal_flush_stalled > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: The WAL device has stopped making progress
+            description: "Commits on {{ `{{ $labels.instance }}` }} are waiting for a log device that has made no progress for over a minute. Nothing has failed; check the storage device."
+        - alert: ScramDBGpuKernelErrors
+          expr: increase(scramdb_gpu_kernel_errors_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: The GPU is refusing kernel launches
+            description: "{{ `{{ $labels.instance }}` }} had GPU kernel launches refused; its queries run on the CPU, answers unchanged. Check the GPU and its driver."
         {{- if include "scramdb.isCluster" . }}
         - alert: ScramDBQuarantinedGroup
           expr: scramdb_cluster_quarantined_groups > 0
@@ -94,6 +110,22 @@ spec:
           annotations:
             summary: Cluster peers are reconnecting repeatedly
             description: "{{ `{{ $labels.instance }}` }} lost a peer connection more than five times in fifteen minutes."
+        - alert: ScramDBStageMismatch
+          expr: increase(scramdb_cluster_rekey_stage_mismatches_total[15m]) + increase(scramdb_cluster_copy_stage_mismatches_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A replica stopped at a staged copy that does not match its vote
+            description: "{{ `{{ $labels.instance }}` }} has a replica that refused to apply a re-key or COPY entry because its stage was not the one the entry names."
+        - alert: ScramDBMigrationStuck
+          expr: scramdb_cluster_migration_tables_pending > 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: A table migration has not finished
+            description: "{{ `{{ $labels.instance }}` }} still has {{ `{{ $value }}` }} table(s) with a migration it has not finished. SHOW CLUSTER lists the pending count per node."
         - alert: ScramDBPartitionFrameDrops
           expr: increase(scramdb_cluster_partition_drops_total[15m]) > 0
           for: 5m
@@ -111,6 +143,38 @@ spec:
           annotations:
             summary: Heavy statements are parked waiting for execution memory
             description: "{{ `{{ $labels.instance }}` }} has statements queued past the admission warning deadline. Raise memory, or lower concurrency."
+        - alert: ScramDBServerStalled
+          expr: scramdb_server_stalled_seconds > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: The server has stopped finishing statements
+            description: "{{ `{{ $labels.instance }}` }} has statements in flight and none has finished for {{ `{{ $value }}` }} seconds. Its log names what they wait on."
+        - alert: ScramDBAdmissionRefusals
+          expr: increase(scramdb_admission_parked_too_long_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Statements are ending with a server busy error
+            description: "{{ `{{ $labels.instance }}` }} ended statements that waited the longest it allows for memory. Raise memory, or lower concurrency."
+        - alert: ScramDBNotificationWakeMissed
+          expr: increase(scramdb_notify_listeners_rewoken_total[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A listening session missed a wake-up
+            description: "{{ `{{ $labels.instance }}` }} had notifications waiting for an idle session with nothing to wake it."
+        - alert: ScramDBPreparedTransactionOld
+          expr: scramdb_prepared_xacts_oldest_age_seconds > 3600
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A prepared transaction has waited over an hour
+            description: "{{ `{{ $labels.instance }}` }} reports the oldest prepared transaction of its node or cluster prepared {{ `{{ $value }}` }} seconds ago (a cluster's is read about once a minute). It keeps its locks until COMMIT PREPARED or ROLLBACK PREPARED; pg_prepared_xacts lists it."
         - alert: ScramDBBufferPoolWatchdog
           expr: increase(scramdb_pool_watchdog_escalations_total[15m]) > 0
           for: 5m

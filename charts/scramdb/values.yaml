@@ -180,12 +180,32 @@ cluster:
   ## Static peers, for joining a cluster this chart does not own. Setting this
   ## alongside a derived `bootstrapExpect` is refused at boot; set both or neither.
   seeds: []
+  ## Where the fragments of a distributed read run. true places them on any
+  ## replica that holds the buckets, learners first (in the node's own region: a
+  ## learner, then a follower, then the group's leader), so analytics load the
+  ## leaders least; a replica that cannot serve the read refuses and another reads
+  ## its buckets. false keeps every fragment on the buckets' owners.
+  fragmentAnyReplica: true
   ## Extra TOML appended inside the [cluster] section, for the sub-tables this
-  ## chart does not model ([cluster.swim], [cluster.raft], [cluster.rebalance],
-  ## [cluster.txn]). Written verbatim.
+  ## chart does not model ([cluster.swim], [cluster.consensus], [cluster.rebalance],
+  ## [cluster.transactions], [cluster.transport], [cluster.log_compaction],
+  ## [cluster.apply], [cluster.dilith], [cluster.vector], [cluster.distributed_join],
+  ## [cluster.exchange]). Written verbatim; a table left out runs at its defaults.
+  ## For example, [cluster.consensus] log_segment_size pins the segment size of a
+  ## node's shared raft log (default: a thousandth of the data volume, 64MB to
+  ## 256MB), and [cluster.dilith] copy_stage_idle_timeout how long a group keeps
+  ## the staged rows of a COPY whose node went silent (default: ten election
+  ## timeouts).
   extraToml: ""
   ## Mutual TLS between nodes on the cluster transport. Independent of `tls`
-  ## below, which is the client-facing pgwire certificate.
+  ## below, which is the client-facing pgwire certificate. Every pod mounts the
+  ## same certificate, so it must carry every node name (the pod names, as DNS
+  ## SANs or CN) and `*.<headless service>.<namespace>.svc.<clusterDomain>`; a
+  ## peer whose certificate lacks the name it announces is refused. Pod IPs are
+  ## not needed: a node dialing an address it discovered checks the name the
+  ## peer announces instead. The install notes print the exact names and the
+  ## `scripts/cluster_tls_certs.sh --shared` command (ScramDB repository) that
+  ## makes the certificate.
   tls:
     enabled: false
     ## Secret holding tls.crt, tls.key and ca.crt.
@@ -235,10 +255,11 @@ metrics:
 
 ## WAL archiving, which is what makes point-in-time recovery and branching work.
 ##
-## In a cluster only the current group0 leader ships segments, and a failed-over
-## leader resumes from the DESTINATION's own listing. A node-local destination
-## therefore fragments the archive across leaders: each one starts a fresh archive
-## and no node ever holds a complete history. Point this at storage every node can
+## In a cluster every node ships its own WAL under its own stream, and each shard
+## group's log is shipped by whichever node leads the group at the time, resuming
+## from the DESTINATION's own listing after a leader change. A node-local
+## destination therefore scatters each group's history over the nodes that led it
+## and no node holds a restorable history. Point this at storage every node can
 ## reach.
 walArchive:
   enabled: true
@@ -247,6 +268,19 @@ walArchive:
   ## chart warns about in cluster mode.
   destination: ""
   pollInterval: 5s
+  ## How long an archived segment is kept once it also lies before the base
+  ## backup's WAL position at [storage.wal.backup] destination; with no backup
+  ## there, age alone decides. The archive removes older segments by default; set
+  ## a longer duration (hours, "720h" for 30 days) to keep more history. The newest
+  ## segment always stays.
+  retention: 168h
+  ## The most bytes the archive may hold ("200GB"). The oldest segments no backup
+  ## or branch needs go first once it is passed. Empty is a quarter of the data
+  ## volume, measured at start.
+  maxSize: ""
+  ## Store each archived segment compressed (one zstd frame per file). A compressed
+  ## archive reads back the same as a raw one, and a mixed one reads too.
+  compress: true
 
 ## Client-facing TLS on the PostgreSQL wire protocol. Server side only; ScramDB
 ## does not request a client certificate. A missing, unreadable or mismatched
@@ -283,6 +317,20 @@ config:
   jitEnabled: true
   ## Runtime dlopen with a graceful CPU-only fallback when no device is present.
   gpuEnabled: true
+  ## Connection liveness, as PostgreSQL's settings of the same names. A session's
+  ## own SET overrides each one for that session; RESET returns to these values.
+  ## Durations need a unit ("30s", "5m", "1h"), a bare number is milliseconds; "0" disables a timeout.
+  ## idleSessionTimeout closes a session that sent nothing for that long
+  ## (SQLSTATE 57P05), idleInTransactionSessionTimeout one idle inside a
+  ## transaction (25P03).
+  idleSessionTimeout: "0"
+  idleInTransactionSessionTimeout: "0"
+  ## TCP keepalive probes: seconds idle before the first probe, seconds between
+  ## probes and unanswered probes before the connection is dropped. "0" keeps the
+  ## operating system's value for the interval and the count.
+  tcpKeepalivesIdle: "60s"
+  tcpKeepalivesInterval: "0"
+  tcpKeepalivesCount: 0
 
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##

@@ -22,7 +22,7 @@ helm install scramdb scramdb/scramdb \
 Charts are also published as OCI artifacts:
 
 ```bash
-helm install scramdb oci://registry-1.docker.io/scramdb/scramdb --version 1.0.0
+helm install scramdb oci://registry-1.docker.io/scramdb/scramdb --version 1.1.0
 ```
 
 ## Deploying the Community edition

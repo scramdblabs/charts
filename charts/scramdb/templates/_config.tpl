@@ -56,17 +56,37 @@ enabled = {{ $.Values.walArchive.enabled }}
 destination = {{ $.Values.walArchive.destination | quote }}
 {{- else if $.Values.walArchive.enabled }}
 # No walArchive.destination set, so this derives to a node-local path. In a
-# cluster only the current leader ships segments and a new leader resumes from
-# the destination's own listing, so a local path leaves no node holding a
-# complete point-in-time history. Set an s3://, gs://, az:// or shared file://
+# cluster each group's log is shipped by whichever node leads the group, so a
+# local path scatters each group's history over the nodes that led it and no
+# node holds a restorable history. Set an s3://, gs://, az:// or shared file://
 # destination before relying on PITR.
 {{- end }}
 poll_interval = {{ $.Values.walArchive.pollInterval | quote }}
+retention = {{ $.Values.walArchive.retention | quote }}
+{{- if $.Values.walArchive.maxSize }}
+max_size = {{ $.Values.walArchive.maxSize | quote }}
+{{- end }}
+compress = {{ $.Values.walArchive.compress }}
+
+[resilience]
+# Seconds-valued durations are whole seconds ("0" is off, or the OS default for
+# the keepalive interval). A session's own SET overrides each for that session.
+idle_session_timeout = {{ $.Values.config.idleSessionTimeout | quote }}
+idle_in_transaction_session_timeout = {{ $.Values.config.idleInTransactionSessionTimeout | quote }}
+tcp_keepalives_idle = {{ $.Values.config.tcpKeepalivesIdle | quote }}
+tcp_keepalives_interval = {{ $.Values.config.tcpKeepalivesInterval | quote }}
+tcp_keepalives_count = {{ $.Values.config.tcpKeepalivesCount }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]
 node_name = "${NODE_NAME}"
+# Three listeners: control traffic (the port advertise_addr names), interactive
+# and bulk traffic (peers learn those two from the control connection). Set, so
+# a taken port fails the start instead of moving a lane to a port the kernel
+# picks, which neither the Service nor the NetworkPolicy would carry.
 cluster_listen = "0.0.0.0:7190"
+cluster_interactive_listen = "0.0.0.0:7191"
+cluster_bulk_listen = "0.0.0.0:7192"
 # Every pod of every pool answers to <pod>.<headless service>, so one template
 # line is correct for all of them.
 advertise_addr = "${NODE_NAME}.{{ include "scramdb.discoveryDomain" $ }}:7190"
@@ -86,6 +106,7 @@ dns_name = {{ include "scramdb.discoveryDomain" $ | quote }}
 dns_refresh = {{ $.Values.cluster.dnsRefresh | quote }}
 replication_factor = {{ $.Values.cluster.replicationFactor }}
 group0_bootstrap_timeout = {{ $.Values.cluster.group0BootstrapTimeout | quote }}
+fragment_any_replica = {{ $.Values.cluster.fragmentAnyReplica }}
 {{- if $learner }}
 # A learner hosts replicated data for local reads, owns no buckets and is never
 # promoted to a voter.
@@ -98,6 +119,12 @@ tls_cert = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.certFilename }}"
 tls_key = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.keyFilename }}"
 tls_ca = "/etc/scramdb/cluster-tls/{{ $.Values.cluster.tls.caFilename }}"
 {{- end }}
+# Consensus ([cluster.consensus], its thread count included), log compaction
+# ([cluster.log_compaction]), applying committed writes ([cluster.apply]), the
+# commit protocol ([cluster.dilith]), how long a COMMIT waits for it
+# ([cluster.transactions]), cluster vector settings ([cluster.vector]), joins
+# across nodes ([cluster.distributed_join]) and the row exchange between nodes
+# ([cluster.exchange]) run at their defaults unless cluster.extraToml sets them.
 {{- with $.Values.cluster.extraToml }}
 {{ tpl . $ }}
 {{- end }}

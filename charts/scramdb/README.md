@@ -111,6 +111,11 @@ learners:
   replicas: 2
 ```
 
+A distributed read entered on any node runs its fragments on the learners first,
+then on followers, and on a group's leader only when nothing else holds the
+buckets, so analytics load the voters least. `cluster.fragmentAnyReplica: false`
+keeps every fragment on the buckets' owners instead.
+
 ## Scaling
 
 Adding a node needs no configuration change: a new pod finds the formed cluster
@@ -142,7 +147,7 @@ value that cannot go stale.
 | `auth.seedMethod` | `file` | `file` mounts the Secret and the value never enters the pod spec. `env` is the literal value, visible in `kubectl describe pod`. `random` lets the engine generate one and log it once. |
 | `mcp.auth` | `basic` | The MCP tool surface maps HTTP Basic credentials to a real database role. `env` leaves it unauthenticated, and the chart then refuses to publish it through a LoadBalancer or NodePort. |
 | `tls.enabled` | `false` | Server-side TLS on pgwire, from `tls.existingSecret`. A missing or mismatched certificate fails startup rather than falling back to plaintext. |
-| `cluster.tls.enabled` | `false` | Mutual TLS between nodes on the cluster transport. |
+| `cluster.tls.enabled` | `false` | Mutual TLS between nodes on the cluster transport, from `cluster.tls.existingSecret`. The one shared certificate must carry every node name (the pod names) and the pods' stable DNS names (`*.<headless service>.<namespace>.svc.<clusterDomain>`), never their IPs; the install notes print the exact list and the command that makes it. |
 | `hba.rules` | `""` | A `pg_hba.conf` style rule file. Empty uses the built-in default: trust from localhost, password everywhere else. |
 | `networkPolicy.enabled` | `false` | The cluster transport is always restricted to this chart's own pods; the client and MCP ports follow `allowExternal`. |
 
@@ -164,7 +169,9 @@ decides which of them the client Service carries.
 | Port | Name | What listens |
 |-|-|-|
 | 5432 | pgwire | The PostgreSQL wire protocol. |
-| 7190 | cluster | The cluster transport, in cluster mode only. |
+| 7190 | cluster | The cluster transport's control traffic, in cluster mode only. |
+| 7191 | interactive | The cluster transport's interactive traffic, in cluster mode only. |
+| 7192 | bulk | The cluster transport's bulk traffic, in cluster mode only. |
 | 9090 | metrics | `/metrics` and `/health` on one HTTP listener. |
 | 9191 | mcp | The Semantic AI MCP server, started in-process by the engine. |
 
@@ -195,6 +202,22 @@ leader ships WAL segments and a new leader resumes from the destination's own
 listing, so a node-local archive leaves no node holding a complete point-in-time
 history after a failover. The chart warns about this at install time rather than
 silently shipping a broken recovery story.
+
+The archive removes segments older than `walArchive.retention` (default `168h`, seven
+days) once they also lie before the latest base backup; set a longer duration to keep
+more point-in-time history.
+
+`walArchive.maxSize` caps the archive's bytes (empty is a quarter of the data volume):
+once it is passed the oldest segments no backup or branch needs go first, and segments
+still needed stay and are warned about. `walArchive.compress` (default `true`) stores
+each segment as one zstd frame.
+
+Connection liveness follows PostgreSQL's settings of the same names:
+`config.idleSessionTimeout` and `config.idleInTransactionSessionTimeout` close a
+session that sat idle (SQLSTATE 57P05 and 25P03), and `config.tcpKeepalivesIdle`,
+`config.tcpKeepalivesInterval` and `config.tcpKeepalivesCount` tune how a
+connection notices a vanished client. Durations need a unit, and `0` disables a
+timeout. A session's own `SET` overrides each one for that session.
 
 ## Full values
 
