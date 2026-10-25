@@ -13,6 +13,46 @@ entries:
           url: https://hub.docker.com/r/scramdb/scramdb
     apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-10-25T00:44:13.749209076Z"
+    description: ScramDB, the programmable distributed hyperscale UTAP SQL database.
+      Single node or a serializable multi-node cluster from one chart.
+    digest: c30cfc11e1c6b34b28d75ecf809550008334682b884cd5f3ccbc123b63f21035
+    home: https://scramdb.com
+    icon: https://scramdb.com/img/logo.png
+    keywords:
+    - scramdb
+    - database
+    - sql
+    - postgresql
+    - htap
+    - utap
+    - analytics
+    - distributed
+    - cluster
+    maintainers:
+    - email: info@scramdb.com
+      name: ScramDB
+      url: https://scramdb.com
+    name: scramdb
+    sources:
+    - https://github.com/scramdblabs/charts
+    - https://github.com/scramdblabs/releases
+    type: application
+    urls:
+    - https://github.com/scramdblabs/charts/releases/download/scramdb-1.1.0/scramdb-1.1.0.tgz
+    version: 1.1.0
+  - annotations:
+      artifacthub.io/images: |
+        - name: scramdb
+          image: docker.io/scramdb/scramdb:latest
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://scramdb.com/docs/deployment/kubernetes
+        - name: Container image
+          url: https://hub.docker.com/r/scramdb/scramdb
+    apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-09-18T19:35:21.325655652Z"
     description: ScramDB, the programmable distributed hyperscale UTAP SQL database.
       Single node or a serializable multi-node cluster from one chart.
@@ -41,4 +81,4 @@ entries:
     urls:
     - https://github.com/scramdblabs/charts/releases/download/scramdb-1.0.0/scramdb-1.0.0.tgz
     version: 1.0.0
-generated: "2026-09-18T19:35:21.325661483Z"
+generated: "2026-10-25T00:44:13.749222911Z"
