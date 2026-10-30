@@ -83,6 +83,8 @@ enabled = {{ $.Values.autonomy.enabled }}
 [agent]
 token_default_validity = {{ $.Values.agent.tokenDefaultValidity | quote }}
 token_max_validity = {{ $.Values.agent.tokenMaxValidity | quote }}
+approval_token_ttl = {{ $.Values.agent.approvalTokenTtl | quote }}
+destructive_delete_fraction = {{ $.Values.agent.destructiveDeleteFraction }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

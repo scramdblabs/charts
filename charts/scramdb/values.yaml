@@ -344,6 +344,10 @@ autonomy:
 agent:
   tokenDefaultValidity: "1d"
   tokenMaxValidity: "30d"
+  ## How long a merge approval token (`scram.approve`) stays valid, and the share of a table's
+  ## parent rows an approved merge may delete before it needs allow_destructive.
+  approvalTokenTtl: "30m"
+  destructiveDeleteFraction: 0.25
 
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##
