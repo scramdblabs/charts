@@ -85,6 +85,9 @@ token_default_validity = {{ $.Values.agent.tokenDefaultValidity | quote }}
 token_max_validity = {{ $.Values.agent.tokenMaxValidity | quote }}
 approval_token_ttl = {{ $.Values.agent.approvalTokenTtl | quote }}
 destructive_delete_fraction = {{ $.Values.agent.destructiveDeleteFraction }}
+preapply_snapshot_retention = {{ $.Values.agent.preapplySnapshotRetention | quote }}
+merge_preview_sample_rows = {{ $.Values.agent.mergePreviewSampleRows }}
+branch_size_quota = {{ $.Values.agent.branchSizeQuota | int64 }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

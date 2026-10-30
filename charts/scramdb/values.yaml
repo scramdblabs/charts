@@ -348,6 +348,11 @@ agent:
   ## parent rows an approved merge may delete before it needs allow_destructive.
   approvalTokenTtl: "30m"
   destructiveDeleteFraction: 0.25
+  ## How long a merge's pre-apply snapshot is kept for undo, how many sample rows a merge preview
+  ## shows per table, and the bytes an agent branch may own (0: no limit).
+  preapplySnapshotRetention: "7d"
+  mergePreviewSampleRows: 20
+  branchSizeQuota: 0
 
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##
