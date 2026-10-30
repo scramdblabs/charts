@@ -79,6 +79,10 @@ tcp_keepalives_count = {{ $.Values.config.tcpKeepalivesCount }}
 
 [autonomy]
 enabled = {{ $.Values.autonomy.enabled }}
+
+[agent]
+token_default_validity = {{ $.Values.agent.tokenDefaultValidity | quote }}
+token_max_validity = {{ $.Values.agent.tokenMaxValidity | quote }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

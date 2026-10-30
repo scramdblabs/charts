@@ -339,6 +339,12 @@ config:
 autonomy:
   enabled: true
 
+## AI agent login tokens (`scram.agent_token`): the validity a token gets when the call names
+## none, and the longest validity a call may ask for.
+agent:
+  tokenDefaultValidity: "1d"
+  tokenMaxValidity: "30d"
+
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##
 ## `medium` is the reference production shape: 16 vCPU and 32 GiB, matching the
