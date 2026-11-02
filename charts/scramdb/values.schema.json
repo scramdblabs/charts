@@ -111,6 +111,12 @@
         "containerPort": { "type": "integer", "minimum": 0, "maximum": 65535 }
       }
     },
+    "autonomy": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" }
+      }
+    },
     "config": {
       "type": "object",
       "properties": {
