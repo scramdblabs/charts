@@ -88,6 +88,11 @@ destructive_delete_fraction = {{ $.Values.agent.destructiveDeleteFraction }}
 preapply_snapshot_retention = {{ $.Values.agent.preapplySnapshotRetention | quote }}
 merge_preview_sample_rows = {{ $.Values.agent.mergePreviewSampleRows }}
 branch_size_quota = {{ $.Values.agent.branchSizeQuota | int64 }}
+merge_record_retention = {{ $.Values.agent.mergeRecordRetention | int64 }}
+
+[network]
+threads = {{ $.Values.network.threads | int64 }}
+io_backend = {{ $.Values.network.ioBackend | quote }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]

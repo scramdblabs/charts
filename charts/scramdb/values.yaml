@@ -353,6 +353,16 @@ agent:
   preapplySnapshotRetention: "7d"
   mergePreviewSampleRows: 20
   branchSizeQuota: 0
+  ## Merge records each database keeps, newest first (16 to 16777216); a retried merge id inside
+  ## the window answers its recorded result.
+  mergeRecordRetention: 4096
+
+## The threads that serve client connections ([network]). threads 0 takes the CPU budget's IO
+## share (a quarter of the cores, 2 to 8); ioBackend is auto, io_uring or epoll. The restricted
+## seccomp profile refuses io_uring, so auto falls back to epoll there.
+network:
+  threads: 0
+  ioBackend: "auto"
 
 ## Sizing presets. `resources` below overrides whichever preset is selected.
 ##
