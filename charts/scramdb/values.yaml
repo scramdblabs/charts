@@ -232,6 +232,15 @@ mcp:
 metrics:
   enabled: true
   containerPort: 9090
+  ## The server listens on loopback unless told otherwise; "*" lets the Service and the
+  ## ServiceMonitor reach the pod, with the pod network as the exposure control.
+  listenAddress: "*"
+  ## Require `Authorization: Bearer <token>` on every request. The token comes from
+  ## existingSecret (key secretKey), or from a Secret generated once on first install.
+  bearerToken:
+    enabled: false
+    existingSecret: ""
+    secretKey: token
   ## Both of these need the Prometheus Operator CRDs present. Enabling one
   ## without them fails the release with "no matches for kind", by design: an
   ## explicit opt-in should refuse rather than silently do nothing.

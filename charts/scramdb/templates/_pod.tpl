@@ -130,6 +130,15 @@ livenessProbe:
       - key: {{ .Values.auth.secretKeys.passwordKey }}
         path: {{ .Values.auth.secretKeys.passwordKey }}
 {{- end }}
+{{- if include "scramdb.metricsTokenEnabled" . }}
+- name: metrics-token
+  secret:
+    secretName: {{ include "scramdb.metricsTokenSecretName" . }}
+    defaultMode: 0400
+    items:
+      - key: {{ .Values.metrics.bearerToken.secretKey }}
+        path: token
+{{- end }}
 {{- if or .Values.hba.rules .Values.hba.existingConfigMap }}
 - name: hba
   configMap:
@@ -176,6 +185,11 @@ livenessProbe:
 {{- if and .Values.auth.enabled (eq .Values.auth.seedMethod "file") }}
 - name: auth
   mountPath: /etc/scramdb/auth
+  readOnly: true
+{{- end }}
+{{- if include "scramdb.metricsTokenEnabled" . }}
+- name: metrics-token
+  mountPath: /etc/scramdb/metrics
   readOnly: true
 {{- end }}
 {{- if or .Values.hba.rules .Values.hba.existingConfigMap }}

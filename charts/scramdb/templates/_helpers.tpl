@@ -136,6 +136,31 @@ different random values.
 {{- if and .Values.auth.enabled (not .Values.auth.existingSecret) (ne .Values.auth.seedMethod "random") -}}true{{- end -}}
 {{- end }}
 
+{{- define "scramdb.metricsTokenSecretName" -}}
+{{- if .Values.metrics.bearerToken.existingSecret -}}
+{{- .Values.metrics.bearerToken.existingSecret -}}
+{{- else -}}
+{{- printf "%s-metrics-token" (include "scramdb.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The metrics bearer token: read back from the live Secret on upgrade, so a scrape
+configuration keeps working; generated once otherwise (materialized in one place).
+*/}}
+{{- define "scramdb.metricsToken" -}}
+{{- $existing := lookup "v1" "Secret" (include "scramdb.namespace" .) (include "scramdb.metricsTokenSecretName" .) -}}
+{{- if and $existing (index $existing.data .Values.metrics.bearerToken.secretKey) -}}
+{{- index $existing.data .Values.metrics.bearerToken.secretKey | b64dec -}}
+{{- else -}}
+{{- randAlphaNum 40 -}}
+{{- end -}}
+{{- end }}
+
+{{- define "scramdb.metricsTokenEnabled" -}}
+{{- if and .Values.metrics.enabled .Values.metrics.bearerToken.enabled -}}true{{- end -}}
+{{- end }}
+
 {{- define "scramdb.licenseSecretName" -}}
 {{- if .Values.license.existingSecret -}}
 {{- .Values.license.existingSecret -}}
