@@ -4,7 +4,7 @@ description: ScramDB, the programmable distributed hyperscale UTAP SQL database.
 type: application
 
 # Chart version. Bumped on every chart change; chart-releaser publishes on a bump.
-version: 1.1.1
+version: 1.1.2
 # The ScramDB release this chart is written against. The image tag defaults to
 # `latest` (values.yaml image.tag), so this records what the templates were
 # verified against, not what a given install runs.
@@ -22,7 +22,7 @@ keywords:
   - cluster
 
 home: https://scramdb.com
-icon: https://scramdb.com/img/logo.png
+icon: https://scramdb.com/img/scramdb-icon.svg
 sources:
   - https://github.com/scramdblabs/charts
   - https://github.com/scramdblabs/releases

@@ -36,6 +36,13 @@ spec:
       scrapeTimeout: {{ . }}
       {{- end }}
       honorLabels: {{ .Values.metrics.serviceMonitor.honorLabels }}
+      {{- if include "scramdb.metricsTokenEnabled" . }}
+      authorization:
+        type: Bearer
+        credentials:
+          name: {{ include "scramdb.metricsTokenSecretName" . }}
+          key: {{ .Values.metrics.bearerToken.secretKey }}
+      {{- end }}
       {{- with .Values.metrics.serviceMonitor.relabelings }}
       relabelings:
         {{- toYaml . | nindent 8 }}
