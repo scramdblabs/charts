@@ -179,8 +179,9 @@ decides which of them the client Service carries.
 
 `metrics.serviceMonitor.enabled` scrapes every node as its own Prometheus target
 through the headless Service. `metrics.prometheusRule.enabled` adds alerts for the
-failures that have a counter: a quarantined shard group, WAL archiving falling
-behind, peers flapping, an expiring license, execution-memory stalls. An absent
+failures that have a counter: a quarantined shard group, a failed log, a schema
+change a node cannot apply, WAL archiving falling behind, peers flapping, an
+expiring license, execution-memory stalls. An absent
 metric on this endpoint means not measured, never zero, so nothing alerts on
 absence.
 

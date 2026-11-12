@@ -85,6 +85,14 @@ spec:
           annotations:
             summary: The WAL device has stopped making progress
             description: "Commits on {{ `{{ $labels.instance }}` }} are waiting for a log device that has made no progress for over a minute. Nothing has failed; check the storage device."
+        - alert: ScramDBWalFailed
+          expr: scramdb_wal_failed > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: The write-ahead log has failed
+            description: "{{ `{{ $labels.instance }}` }} cannot write its log, so it refuses writes and serves reads only. It writes again by itself once its storage works; check the storage device and the server log."
         - alert: ScramDBGpuKernelErrors
           expr: increase(scramdb_gpu_kernel_errors_total[15m]) > 0
           for: 5m
@@ -126,6 +134,14 @@ spec:
           annotations:
             summary: A table migration has not finished
             description: "{{ `{{ $labels.instance }}` }} still has {{ `{{ $value }}` }} table(s) with a migration it has not finished. SHOW CLUSTER lists the pending count per node."
+        - alert: ScramDBSchemaChangeStuck
+          expr: scramdb_cluster_ddl_apply_stuck > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A node cannot apply a schema change the cluster decided
+            description: "{{ `{{ $labels.instance }}` }} has {{ `{{ $value }}` }} decided schema change(s) it has not been able to apply. Statements that name the affected tables answer a retryable error on that node until it does. It keeps trying; the server log names what fails."
         - alert: ScramDBPartitionFrameDrops
           expr: increase(scramdb_cluster_partition_drops_total[15m]) > 0
           for: 5m
