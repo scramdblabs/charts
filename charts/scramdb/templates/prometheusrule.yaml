@@ -167,6 +167,14 @@ spec:
           annotations:
             summary: Self-driving decisions are not being recorded
             description: "{{ `{{ $labels.instance }}` }} could not write its self-driving decision records. Check the autonomy schema and the data volume."
+        - alert: ScramDBAutonomyTrimStuck
+          expr: scramdb_autonomy_trim_kept_age_seconds > 900
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: The trim of the self-driving decision record does not end
+            description: "{{ `{{ $labels.instance }}` }} has kept one pass of the trim of its decision record for {{ `{{ $value }}` }} seconds, so the record can grow past its bound. Check the autonomy schema, the data volume and the server log, which names the table."
         - alert: ScramDBAdmissionStalls
           expr: increase(scramdb_admission_waited_past_deadline_total[15m]) > 0
           for: 15m
@@ -215,5 +223,13 @@ spec:
           annotations:
             summary: The buffer pool watchdog is escalating
             description: "{{ `{{ $labels.instance }}` }} is under memory pressure severe enough for the watchdog to act."
+        - alert: ScramDBHeapClassesOverrun
+          expr: scramdb_heap_class_overrun_bytes > 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: The per-class memory figures add up to more than the heap
+            description: "The per-class memory figures of {{ `{{ $labels.instance }}` }} read {{ `{{ $value }}` }} bytes past its live heap, so they cannot be trusted. No limit or admission decision reads them. Keep a scrape of /metrics and the server log for the report."
         {{- end }}
 {{- end }}
