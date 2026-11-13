@@ -180,9 +180,11 @@ decides which of them the client Service carries.
 `metrics.serviceMonitor.enabled` scrapes every node as its own Prometheus target
 through the headless Service. `metrics.prometheusRule.enabled` adds alerts for the
 failures that have a counter: a quarantined shard group, a failed log, a schema
-change a node cannot apply, WAL archiving falling behind, peers flapping, an
-expiring license, execution-memory stalls, a decision-record trim that does not
-end, per-class memory figures that read past the heap. An absent
+change a node cannot apply, shard groups that wait long for a schema change to
+reach a node, a schema change that waits for the columnar store's log, WAL archiving
+falling behind, peers flapping, an expiring license, execution-memory stalls, a
+decision-record trim that does not end, per-class memory figures that read past the
+heap. An absent
 metric on this endpoint means not measured, never zero, so nothing alerts on
 absence.
 

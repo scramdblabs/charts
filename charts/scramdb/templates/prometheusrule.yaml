@@ -141,7 +141,23 @@ spec:
             severity: critical
           annotations:
             summary: A node cannot apply a schema change the cluster decided
-            description: "{{ `{{ $labels.instance }}` }} has {{ `{{ $value }}` }} decided schema change(s) it has not been able to apply. Statements that name the affected tables answer a retryable error on that node until it does. It keeps trying; the server log names what fails."
+            description: "{{ `{{ $labels.instance }}` }} has {{ `{{ $value }}` }} decided schema change(s) it has not been able to apply. Statements that name the affected tables wait for the change and then answer a retryable error on that node until it applies. It keeps trying; the server log names what fails."
+        - alert: ScramDBSchemaChangeWaiting
+          expr: scramdb_cluster_apply_lanes_at_fence > 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Shard groups have waited long for a schema change to reach a node
+            description: "{{ `{{ $value }}` }} shard group(s) on {{ `{{ $labels.instance }}` }} have waited for half an hour at a schema change for the node's catalog to take it. A rewrite of a large table takes this long on its own. If it does not, the server log of that node names what the change waits for, and ScramDBSchemaChangeStuck shows a change the node cannot apply."
+        - alert: ScramDBColumnarStoreLogWaiting
+          expr: scramdb_cluster_ddl_columnar_store_waiting > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: A schema change waits for the columnar store's log
+            description: "{{ `{{ $value }}` }} decided schema change(s) on {{ `{{ $labels.instance }}` }} wait for the columnar store's log, and the schema changes decided after them on that node wait behind them. Check the storage that holds the columnar store's log and the server log."
         - alert: ScramDBPartitionFrameDrops
           expr: increase(scramdb_cluster_partition_drops_total[15m]) > 0
           for: 5m
