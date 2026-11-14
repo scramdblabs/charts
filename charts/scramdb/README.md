@@ -179,8 +179,12 @@ decides which of them the client Service carries.
 
 `metrics.serviceMonitor.enabled` scrapes every node as its own Prometheus target
 through the headless Service. `metrics.prometheusRule.enabled` adds alerts for the
-failures that have a counter: a quarantined shard group, WAL archiving falling
-behind, peers flapping, an expiring license, execution-memory stalls. An absent
+failures that have a counter: a quarantined shard group, a failed log, a schema
+change a node cannot apply, shard groups that wait long for a schema change to
+reach a node, a schema change that waits for the columnar store's log, WAL archiving
+falling behind, peers flapping, an expiring license, execution-memory stalls, a
+decision-record trim that does not end, per-class memory figures that read past the
+heap. An absent
 metric on this endpoint means not measured, never zero, so nothing alerts on
 absence.
 
@@ -221,8 +225,8 @@ timeout. A session's own `SET` overrides each one for that session.
 
 Ejder, the self-driving loop, runs by default. `autonomy.enabled: false` turns it
 off in the generated config; a node's `SCRAMDB_AUTONOMY=off` does the same. The
-`ScramDBAutonomyParked` and `ScramDBAutonomyRecordsFailing` alerts watch it. Its other
-`[autonomy]` keys go in `config.extraToml`.
+`ScramDBAutonomyParked`, `ScramDBAutonomyRecordsFailing` and `ScramDBAutonomyTrimStuck`
+alerts watch it. Its other `[autonomy]` keys go in `config.extraToml`.
 
 ## Full values
 

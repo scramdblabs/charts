@@ -19,6 +19,10 @@ Context: dict with `root` (the chart context) and `learner` (bool).
 [general]
 jit_enabled = {{ $.Values.config.jitEnabled }}
 metrics_port = {{ if $.Values.metrics.enabled }}{{ $.Values.metrics.containerPort }}{{ else }}0{{ end }}
+metrics_listen_address = {{ $.Values.metrics.listenAddress | quote }}
+{{- if include "scramdb.metricsTokenEnabled" $ }}
+metrics_bearer_token_file = "/etc/scramdb/metrics/token"
+{{- end }}
 # Bind every interface: a Service cannot reach a loopback listener, and the
 # container boundary is the exposure control. Config wins over the CLI default.
 pg_address = "0.0.0.0:5432"
@@ -88,6 +92,11 @@ destructive_delete_fraction = {{ $.Values.agent.destructiveDeleteFraction }}
 preapply_snapshot_retention = {{ $.Values.agent.preapplySnapshotRetention | quote }}
 merge_preview_sample_rows = {{ $.Values.agent.mergePreviewSampleRows }}
 branch_size_quota = {{ $.Values.agent.branchSizeQuota | int64 }}
+merge_record_retention = {{ $.Values.agent.mergeRecordRetention | int64 }}
+
+[network]
+threads = {{ $.Values.network.threads | int64 }}
+io_backend = {{ $.Values.network.ioBackend | quote }}
 {{- if include "scramdb.isCluster" $ }}
 
 [cluster]
