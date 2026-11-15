@@ -1,6 +1,6 @@
 # No password check, for a network already under your control: the client port
-# trusts every connection, and the MCP tool surface then accepts any HTTP Basic
-# user name. Both stay on a ClusterIP.
+# trusts every connection, and the MCP tool surface takes the name of a role that
+# exists with any password. Both stay on a ClusterIP.
 architecture: standalone
 auth:
   enabled: false
