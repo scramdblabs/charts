@@ -1,10 +1,9 @@
-# No authentication anywhere, for a network already under your control. Both the
-# client port and the MCP tool surface stay on a ClusterIP.
+# No password check, for a network already under your control: the client port
+# trusts every connection, and the MCP tool surface then accepts any HTTP Basic
+# user name. Both stay on a ClusterIP.
 architecture: standalone
 auth:
   enabled: false
-mcp:
-  auth: env
 service:
   type: ClusterIP
   exposeMcp: true

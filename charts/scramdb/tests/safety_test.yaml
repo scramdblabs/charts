@@ -28,17 +28,26 @@ tests:
       - failedTemplate:
           errorPattern: "cannot be placed on 2 voting node"
 
-  - it: an unauthenticated MCP surface cannot be put behind a LoadBalancer
+  - it: the MCP surface has no unauthenticated mode
     set:
       mcp:
         auth: env
-      service:
-        type: LoadBalancer
-        exposeMcp: true
     template: statefulset.yaml
     asserts:
       - failedTemplate:
-          errorPattern: "no authentication at all"
+          errorPattern: "mcp.auth"
+
+  - it: the MCP surface takes an agent token when asked
+    set:
+      mcp:
+        auth: bearer
+    template: statefulset.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_AUTH
+            value: bearer
 
   - it: seeds shorter than the derived quota are refused
     set:

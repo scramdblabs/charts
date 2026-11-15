@@ -220,12 +220,11 @@ cluster:
 mcp:
   enabled: true
   containerPort: 9191
-  ## basic | env
-  ##   basic  every request carries HTTP Basic credentials mapped to a real
-  ##          database role, so the tool surface is exactly as protected as pgwire.
-  ##   env    NO HTTP authentication. Anyone who reaches the port gets the whole
-  ##          tool surface using the process's own database credentials.
-  ## The chart refuses to render `service.type: LoadBalancer` with `env`.
+  ## basic | bearer. The engine answers only authenticated requests on this port.
+  ##   basic   every request carries HTTP Basic credentials mapped to a real
+  ##           database role, so the tool surface is exactly as protected as pgwire.
+  ##   bearer  every request carries an agent token
+  ##           (`Authorization: Bearer sat.<role>.<secret>`) and runs as that role.
   auth: basic
 
 ## Prometheus metrics and the /health endpoint, served on one HTTP listener.
@@ -303,7 +302,8 @@ tls:
 
 ## pg_hba.conf style rules deciding who is trusted, who is asked for a password
 ## and who is rejected. Empty uses the built-in default: TRUST from 127.0.0.1 and
-## ::1, password everywhere else.
+## ::1, password everywhere else. A line the server cannot read stops the pod at
+## start, so no later line decides in its place.
 hba:
   rules: ""
   existingConfigMap: ""
