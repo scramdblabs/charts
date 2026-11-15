@@ -56,11 +56,8 @@ cluster.seeds: bootstrap_expect resolves to {{ $expect }} but only {{ len .Value
 
 {{- define "scramdb.validateValues.mcp" -}}
 {{- if .Values.mcp.enabled -}}
-{{- if not (has .Values.mcp.auth (list "basic" "env")) -}}
-mcp.auth: must be "basic" or "env", got {{ .Values.mcp.auth | quote }}.
-{{- else if and (eq .Values.mcp.auth "env") .Values.service.exposeMcp (has .Values.service.type (list "LoadBalancer" "NodePort")) -}}
-mcp.auth: service.type={{ .Values.service.type }} would publish the MCP tool surface on port {{ .Values.service.ports.mcp }} with no authentication at all.
-    Set mcp.auth=basic, or service.exposeMcp=false, or service.type=ClusterIP.
+{{- if not (has .Values.mcp.auth (list "basic" "bearer")) -}}
+mcp.auth: must be "basic" or "bearer", got {{ .Values.mcp.auth | quote }}.
 {{- end -}}
 {{- end -}}
 {{- end }}

@@ -55,6 +55,8 @@ ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
    Semantic AI MCP: port {{ .Values.mcp.containerPort }}, authentication {{ .Values.mcp.auth }}.
    {{- if eq .Values.mcp.auth "basic" }}
    Callers send HTTP Basic credentials for a real database role.
+   {{- else }}
+   Callers send an agent token: Authorization: Bearer sat.<role>.<secret>.
    {{- end }}
 {{- end }}
 {{- if include "scramdb.isCluster" . }}
@@ -122,9 +124,6 @@ ScramDB {{ .Chart.AppVersion }} installed as {{ .Release.Name }}.
 {{- $warnings := list }}
 {{- if not .Values.auth.enabled }}
 {{- $warnings = append $warnings "auth.enabled=false: every connection is trusted with no password check. Anyone who reaches port 5432 is a superuser." }}
-{{- end }}
-{{- if and .Values.mcp.enabled (eq .Values.mcp.auth "env") }}
-{{- $warnings = append $warnings (printf "mcp.auth=env: the MCP tool surface on port %v has no authentication. Keep it on a ClusterIP, or set mcp.auth=basic." .Values.mcp.containerPort) }}
 {{- end }}
 {{- if and (include "scramdb.isCluster" .) .Values.walArchive.enabled (not .Values.walArchive.destination) }}
 {{- $warnings = append $warnings "walArchive.destination is unset, so each node archives WAL locally. Only the current leader ships segments and a new leader resumes from the destination's own listing, so after a failover no node holds a complete point-in-time history. Set an s3://, gs://, az:// or shared file:// destination." }}

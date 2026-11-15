@@ -99,8 +99,8 @@
         "containerPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "auth": {
           "type": "string",
-          "enum": ["basic", "env"],
-          "description": "env leaves the MCP tool surface unauthenticated."
+          "enum": ["basic", "bearer"],
+          "description": "How a request to the MCP tool surface is authenticated: HTTP Basic credentials of a database role, or an agent token."
         }
       }
     },
