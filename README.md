@@ -63,20 +63,18 @@ postgresql://scramdb@scramdb.scramdb.svc.cluster.local:5432/scramdb
 
 ### Size it before you load anything
 
-The default is `resourcesPreset: dev`, which is 1 CPU and 2Gi. That is chosen so a
-first install schedules on any cluster, not to serve a workload: a single statement
-writing a few hundred thousand rows will exhaust its execution memory pool and fail,
-loudly and by name, rather than silently degrade.
+The default is `resourcesPreset: small`, which is 4 CPUs and 16Gi. The engine divides
+the pod's memory limit among its parts, so a larger preset needs no other setting.
 
 ```bash
 helm upgrade scramdb scramdb/scramdb --namespace scramdb --reuse-values \
-  --set resourcesPreset=small
+  --set resourcesPreset=medium
 ```
 
 | Preset | CPU | Memory | For |
 |-|-|-|-|
-| `dev` | 1 | 2Gi | the default, so a first install always schedules |
-| `small` | 4 | 8Gi | development and light workloads |
+| `dev` | 1 | 2Gi | trying the chart on a small cluster, not a workload |
+| `small` | 4 | 16Gi | the default, for development and light workloads |
 | `medium` | 16 | 32Gi | the reference production shape |
 | `large` | 32 | 64Gi | larger single-node production |
 

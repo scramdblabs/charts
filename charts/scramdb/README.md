@@ -55,8 +55,8 @@ psql "host=127.0.0.1 port=5432 user=scramdb dbname=scramdb"
 
 | Preset | CPU | Memory |
 |-|-|-|
-| `dev` (default) | 1 | 2Gi |
-| `small` | 4 | 8Gi |
+| `dev` | 1 | 2Gi |
+| `small` (default) | 4 | 16Gi |
 | `medium` | 16 | 32Gi |
 | `large` | 32 | 64Gi |
 | `xlarge` | 64 | 128Gi |
@@ -68,9 +68,12 @@ equal to limits give the pod Guaranteed QoS, which is what lets a kubelet runnin
 the `static` CPU manager policy pin exclusive cores. Under the default CPU manager
 policy the engine still resolves the right worker count from the CFS quota.
 
-Memory needs no chart-side arithmetic: `buffer_pool_percent` and
-`execution_memory_percent` are left at 0, which means the engine sizes both from
-the container's own cgroup limit.
+Memory needs no chart-side arithmetic: the chart writes no memory size, and the
+engine divides the container's own cgroup limit among the buffer pool, the read
+pool, execution, maintenance, the index buffers and the segment caches.
+`config.bufferPoolPercent`, `config.bufferPoolCap`, `config.executionMemoryPercent`
+and `config.executionMemoryCap` override the division when set; leave them unset
+and size the pod with `resources`.
 
 ## Multi-region
 

@@ -316,13 +316,16 @@ config:
   ## [storage.wal], [storage.compaction], [execution], [udf] and anything else the
   ## chart does not model.
   extraToml: ""
-  ## Buffer pool and execution memory sizing. 0 means automatic: the engine reads
-  ## the container's cgroup memory limit (falling back to host RAM) and sizes both
-  ## from it, so the same values are correct at 2Gi and at 512Gi.
+  ## Memory is divided automatically: the engine reads the container's cgroup memory
+  ## limit (falling back to host RAM) and divides it among the buffer pool, the read
+  ## pool, execution, maintenance, the index buffers and the segment caches, so the
+  ## same values are correct at 2Gi and at 512Gi. These four override the division
+  ## for the buffer pool and execution memory; 0 or "" leaves the key out of the
+  ## rendered config. Size the pod with `resources`, not with these.
   bufferPoolPercent: 0
-  bufferPoolCap: 192GB
+  bufferPoolCap: ""
   executionMemoryPercent: 0
-  executionMemoryCap: 64GB
+  executionMemoryCap: ""
   jitEnabled: true
   ## Runtime dlopen with a graceful CPU-only fallback when no device is present.
   gpuEnabled: true
@@ -381,7 +384,7 @@ network:
 ## the `static` CPU manager policy pin exclusive cores.
 ##
 ## dev | small | medium | large | xlarge | none
-resourcesPreset: dev
+resourcesPreset: small
 resources: {}
 
 persistence:
