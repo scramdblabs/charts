@@ -286,7 +286,7 @@ pin exclusive cores per node.
 {{- define "scramdb.resourcesPreset" -}}
 {{- $presets := dict
   "dev"    (dict "requests" (dict "cpu" "1"  "memory" "2Gi")  "limits" (dict "cpu" "1"  "memory" "2Gi"))
-  "small"  (dict "requests" (dict "cpu" "4"  "memory" "8Gi")  "limits" (dict "cpu" "4"  "memory" "8Gi"))
+  "small"  (dict "requests" (dict "cpu" "4"  "memory" "16Gi") "limits" (dict "cpu" "4"  "memory" "16Gi"))
   "medium" (dict "requests" (dict "cpu" "16" "memory" "32Gi") "limits" (dict "cpu" "16" "memory" "32Gi"))
   "large"  (dict "requests" (dict "cpu" "32" "memory" "64Gi") "limits" (dict "cpu" "32" "memory" "64Gi"))
   "xlarge" (dict "requests" (dict "cpu" "64" "memory" "128Gi") "limits" (dict "cpu" "64" "memory" "128Gi"))

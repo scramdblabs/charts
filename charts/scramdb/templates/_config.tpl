@@ -47,12 +47,21 @@ enabled = {{ $.Values.config.gpuEnabled }}
 prod_name = "tundra"
 shard_id = 0
 basedir = {{ $.Values.persistence.mountPath | quote }}
-# 0 means automatic: sized from the container's cgroup memory limit, falling back
-# to host RAM, so the same numbers are correct at 2Gi and at 512Gi.
+# No memory size is written: the engine divides the container's cgroup memory
+# limit (host RAM without one) among its parts, so the same config is correct at
+# 2Gi and at 512Gi. The four keys below are emitted only when a value overrides it.
+{{- if $.Values.config.bufferPoolPercent }}
 buffer_pool_percent = {{ $.Values.config.bufferPoolPercent }}
+{{- end }}
+{{- if $.Values.config.bufferPoolCap }}
 buffer_pool_cap = {{ $.Values.config.bufferPoolCap | quote }}
+{{- end }}
+{{- if $.Values.config.executionMemoryPercent }}
 execution_memory_percent = {{ $.Values.config.executionMemoryPercent }}
+{{- end }}
+{{- if $.Values.config.executionMemoryCap }}
 execution_memory_cap = {{ $.Values.config.executionMemoryCap | quote }}
+{{- end }}
 
 [storage.wal.archive]
 enabled = {{ $.Values.walArchive.enabled }}

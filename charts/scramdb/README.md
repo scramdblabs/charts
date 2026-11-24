@@ -55,8 +55,8 @@ psql "host=127.0.0.1 port=5432 user=scramdb dbname=scramdb"
 
 | Preset | CPU | Memory |
 |-|-|-|
-| `dev` (default) | 1 | 2Gi |
-| `small` | 4 | 8Gi |
+| `dev` | 1 | 2Gi |
+| `small` (default) | 4 | 16Gi |
 | `medium` | 16 | 32Gi |
 | `large` | 32 | 64Gi |
 | `xlarge` | 64 | 128Gi |
@@ -68,9 +68,12 @@ equal to limits give the pod Guaranteed QoS, which is what lets a kubelet runnin
 the `static` CPU manager policy pin exclusive cores. Under the default CPU manager
 policy the engine still resolves the right worker count from the CFS quota.
 
-Memory needs no chart-side arithmetic: `buffer_pool_percent` and
-`execution_memory_percent` are left at 0, which means the engine sizes both from
-the container's own cgroup limit.
+Memory needs no chart-side arithmetic: the chart writes no memory size, and the
+engine divides the container's own cgroup limit among the buffer pool, the read
+pool, execution, maintenance, the index buffers and the segment caches.
+`config.bufferPoolPercent`, `config.bufferPoolCap`, `config.executionMemoryPercent`
+and `config.executionMemoryCap` override the division when set; leave them unset
+and size the pod with `resources`.
 
 ## Multi-region
 
@@ -145,7 +148,7 @@ value that cannot go stale.
 |-|-|-|
 | `auth.enabled` | `true` | Seeds the bootstrap superuser's password at first boot and turns SCRAM authentication on. `false` runs the node with `--pg-no-auth`, which trusts every connection. |
 | `auth.seedMethod` | `file` | `file` mounts the Secret and the value never enters the pod spec. `env` is the literal value, visible in `kubectl describe pod`. `random` lets the engine generate one and log it once. |
-| `mcp.auth` | `basic` | The MCP tool surface maps HTTP Basic credentials to a real database role. `env` leaves it unauthenticated, and the chart then refuses to publish it through a LoadBalancer or NodePort. |
+| `mcp.auth` | `basic` | The MCP tool surface answers only authenticated requests. `basic` maps HTTP Basic credentials to a real database role; `bearer` takes an agent token and runs as that agent's role. |
 | `tls.enabled` | `false` | Server-side TLS on pgwire, from `tls.existingSecret`. A missing or mismatched certificate fails startup rather than falling back to plaintext. |
 | `cluster.tls.enabled` | `false` | Mutual TLS between nodes on the cluster transport, from `cluster.tls.existingSecret`. The one shared certificate must carry every node name (the pod names) and the pods' stable DNS names (`*.<headless service>.<namespace>.svc.<clusterDomain>`), never their IPs; the install notes print the exact list and the command that makes it. |
 | `hba.rules` | `""` | A `pg_hba.conf` style rule file. Empty uses the built-in default: trust from localhost, password everywhere else. |

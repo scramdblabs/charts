@@ -220,12 +220,11 @@ cluster:
 mcp:
   enabled: true
   containerPort: 9191
-  ## basic | env
-  ##   basic  every request carries HTTP Basic credentials mapped to a real
-  ##          database role, so the tool surface is exactly as protected as pgwire.
-  ##   env    NO HTTP authentication. Anyone who reaches the port gets the whole
-  ##          tool surface using the process's own database credentials.
-  ## The chart refuses to render `service.type: LoadBalancer` with `env`.
+  ## basic | bearer. The engine answers only authenticated requests on this port.
+  ##   basic   every request carries HTTP Basic credentials mapped to a real
+  ##           database role, so the tool surface is exactly as protected as pgwire.
+  ##   bearer  every request carries an agent token
+  ##           (`Authorization: Bearer sat.<role>.<secret>`) and runs as that role.
   auth: basic
 
 ## Prometheus metrics and the /health endpoint, served on one HTTP listener.
@@ -303,7 +302,8 @@ tls:
 
 ## pg_hba.conf style rules deciding who is trusted, who is asked for a password
 ## and who is rejected. Empty uses the built-in default: TRUST from 127.0.0.1 and
-## ::1, password everywhere else.
+## ::1, password everywhere else. A line the server cannot read stops the pod at
+## start, so no later line decides in its place.
 hba:
   rules: ""
   existingConfigMap: ""
@@ -316,13 +316,16 @@ config:
   ## [storage.wal], [storage.compaction], [execution], [udf] and anything else the
   ## chart does not model.
   extraToml: ""
-  ## Buffer pool and execution memory sizing. 0 means automatic: the engine reads
-  ## the container's cgroup memory limit (falling back to host RAM) and sizes both
-  ## from it, so the same values are correct at 2Gi and at 512Gi.
+  ## Memory is divided automatically: the engine reads the container's cgroup memory
+  ## limit (falling back to host RAM) and divides it among the buffer pool, the read
+  ## pool, execution, maintenance, the index buffers and the segment caches, so the
+  ## same values are correct at 2Gi and at 512Gi. These four override the division
+  ## for the buffer pool and execution memory; 0 or "" leaves the key out of the
+  ## rendered config. Size the pod with `resources`, not with these.
   bufferPoolPercent: 0
-  bufferPoolCap: 192GB
+  bufferPoolCap: ""
   executionMemoryPercent: 0
-  executionMemoryCap: 64GB
+  executionMemoryCap: ""
   jitEnabled: true
   ## Runtime dlopen with a graceful CPU-only fallback when no device is present.
   gpuEnabled: true
@@ -381,7 +384,7 @@ network:
 ## the `static` CPU manager policy pin exclusive cores.
 ##
 ## dev | small | medium | large | xlarge | none
-resourcesPreset: dev
+resourcesPreset: small
 resources: {}
 
 persistence:

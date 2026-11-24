@@ -1,0 +1,90 @@
+suite: memory division and pod resources
+templates:
+  - configmap.yaml
+  - statefulset.yaml
+tests:
+  - it: a default config writes no memory size line, the engine divides the pod's limit
+    template: configmap.yaml
+    asserts:
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "buffer_pool_percent"
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "buffer_pool_cap"
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "execution_memory_percent"
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "execution_memory_cap"
+
+  - it: a buffer pool override renders its two lines and the execution lines stay out
+    template: configmap.yaml
+    set:
+      config:
+        bufferPoolPercent: 10
+        bufferPoolCap: 8GB
+    asserts:
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: "buffer_pool_percent = 10\\n"
+      - matchRegex:
+          path: data["config.toml"]
+          pattern: 'buffer_pool_cap = "8GB"'
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "execution_memory_percent"
+      - notMatchRegex:
+          path: data["config.toml"]
+          pattern: "execution_memory_cap"
+
+  - it: the default engine container has 4 CPUs and 16Gi, requests equal to limits
+    template: statefulset.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+            limits:
+              cpu: "4"
+              memory: 16Gi
+
+  - it: resourcesPreset dev gives 1 CPU and 2Gi
+    template: statefulset.yaml
+    set:
+      resourcesPreset: dev
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+
+  - it: explicit resources win over the preset
+    template: statefulset.yaml
+    set:
+      resourcesPreset: dev
+      resources:
+        requests:
+          cpu: "2"
+          memory: 6Gi
+        limits:
+          cpu: "3"
+          memory: 6Gi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "2"
+              memory: 6Gi
+            limits:
+              cpu: "3"
+              memory: 6Gi
